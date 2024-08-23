@@ -1,6 +1,8 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 
 interface GridParameters {
+    typeOfCell : String;
+    perimeter: boolean;
     birthRate: number;
     surpopulationLimit: number;
     lonelinessLimit: number;
@@ -17,6 +19,8 @@ interface GridParameters {
 }
 
 const initialState: GridParameters = {
+    typeOfCell: "Plane",
+    perimeter : false,
     birthRate: 3,
     surpopulationLimit: 3,
     lonelinessLimit: 1,
@@ -37,6 +41,9 @@ export const gridParametersSlice = createSlice(
         name: 'gridParameters',
         initialState,
         reducers: {
+            setTypeOfCell: (state, action: PayloadAction<String>) => {
+                state.typeOfCell = action.payload;
+            },
             setSpeed: (state, action: PayloadAction<number>) => {
                 state.speed = action.payload;
             },
@@ -61,6 +68,9 @@ export const gridParametersSlice = createSlice(
             setIsPointLines: (state, action: PayloadAction<boolean>) => {
                 state.isPointLines = action.payload
             },
+            setPerimeter: (state, action: PayloadAction<boolean>) => {
+                state.perimeter = action.payload
+            },
             setGridHeight: (state, action: PayloadAction<number>) => {
                 state.height = action.payload;
             },
@@ -80,7 +90,7 @@ export const gridParametersSlice = createSlice(
     }
 )
 
-export const { setIs3dGrid, setIsPointLines, setGridHeight, setGridWidth, setGridDepth, setCubeSize, incrementIterationNumber, setHideGrid, setIsCustomGrid, setBirthRate, setSurpopulationLimit, setLonelinessLimit,setSpeed } = gridParametersSlice.actions;
+export const { setIs3dGrid, setIsPointLines, setGridHeight, setGridWidth, setGridDepth, setCubeSize, incrementIterationNumber, setHideGrid, setIsCustomGrid, setBirthRate, setSurpopulationLimit, setLonelinessLimit,setSpeed, setPerimeter,setTypeOfCell } = gridParametersSlice.actions;
 
 export const selectGridIs3DGrid = (state: { grid: GridParameters }) => state.grid.is3DGrid;
 export const selectGridIsPointLines = (state: { grid: GridParameters }) => state.grid.isPointLines;
@@ -95,6 +105,8 @@ export const selectBirthRate = (state: { grid: GridParameters }) => state.grid.b
 export const selectSurpopulationLimit = (state: { grid: GridParameters }) => state.grid.surpopulationLimit
 export const selectLonelinessLimit = (state: { grid: GridParameters }) => state.grid.lonelinessLimit
 export const selectSpeed = (state: { grid: GridParameters }) => state.grid.speed
+export const selectPerimeter = (state: { grid: GridParameters }) => state.grid.perimeter
+export const selectTypeOfCell = (state: { grid: GridParameters }) => state.grid.typeOfCell
 
 
 export default gridParametersSlice.reducer;
