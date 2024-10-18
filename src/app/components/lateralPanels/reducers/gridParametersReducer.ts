@@ -1,8 +1,9 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 
 interface GridParameters {
-    typeOfCell : String;
+    typeOfCell: String;
     perimeter: boolean;
+    linkCells: boolean;
     birthRate: number;
     surpopulationLimit: number;
     lonelinessLimit: number;
@@ -16,11 +17,15 @@ interface GridParameters {
     depth: number;
     cubeSize: number;
     iterationNumber: number;
+    currentHoverCell: HoverCellState | null;
+    stability: number;
+    hideCells : boolean
 }
 
 const initialState: GridParameters = {
     typeOfCell: "Plane",
-    perimeter : false,
+    perimeter: false,
+    linkCells: false,
     birthRate: 3,
     surpopulationLimit: 3,
     lonelinessLimit: 1,
@@ -33,8 +38,19 @@ const initialState: GridParameters = {
     height: 25,
     depth: 1,
     cubeSize: 0.4,
-    iterationNumber: 0
+    iterationNumber: 0,
+    currentHoverCell: null,
+    stability: 0,
+    hideCells : false
 };
+
+interface HoverCellState {
+    cell: string;
+    mouseX: number;
+    mouseY: number;
+}
+
+
 
 export const gridParametersSlice = createSlice(
     {
@@ -71,6 +87,9 @@ export const gridParametersSlice = createSlice(
             setPerimeter: (state, action: PayloadAction<boolean>) => {
                 state.perimeter = action.payload
             },
+            setLinkCells: (state, action: PayloadAction<boolean>) => {
+                state.linkCells = action.payload
+            },
             setGridHeight: (state, action: PayloadAction<number>) => {
                 state.height = action.payload;
             },
@@ -83,14 +102,24 @@ export const gridParametersSlice = createSlice(
             setCubeSize: (state, action: PayloadAction<number>) => {
                 state.cubeSize = action.payload;
             },
+            setCurrentHoverCell: (state, action: PayloadAction<HoverCellState | null>) => {
+                state.currentHoverCell = action.payload;
+            },
             incrementIterationNumber: (state) => {
                 state.iterationNumber + 1;
-            }
+            },
+            setStability: (state, action: PayloadAction<number>) => {
+                state.stability = action.payload;
+            },
+            setHideCells: (state, action: PayloadAction<boolean>) => {
+                state.hideCells = action.payload
+            },
+
         }
     }
 )
 
-export const { setIs3dGrid, setIsPointLines, setGridHeight, setGridWidth, setGridDepth, setCubeSize, incrementIterationNumber, setHideGrid, setIsCustomGrid, setBirthRate, setSurpopulationLimit, setLonelinessLimit,setSpeed, setPerimeter,setTypeOfCell } = gridParametersSlice.actions;
+export const { setIs3dGrid, setIsPointLines, setGridHeight, setGridWidth, setGridDepth, setCubeSize, incrementIterationNumber, setHideGrid, setIsCustomGrid, setBirthRate, setSurpopulationLimit, setLonelinessLimit, setSpeed, setPerimeter, setTypeOfCell, setLinkCells, setCurrentHoverCell,setStability,setHideCells } = gridParametersSlice.actions;
 
 export const selectGridIs3DGrid = (state: { grid: GridParameters }) => state.grid.is3DGrid;
 export const selectGridIsPointLines = (state: { grid: GridParameters }) => state.grid.isPointLines;
@@ -106,7 +135,11 @@ export const selectSurpopulationLimit = (state: { grid: GridParameters }) => sta
 export const selectLonelinessLimit = (state: { grid: GridParameters }) => state.grid.lonelinessLimit
 export const selectSpeed = (state: { grid: GridParameters }) => state.grid.speed
 export const selectPerimeter = (state: { grid: GridParameters }) => state.grid.perimeter
+export const selectLinkCells = (state: { grid: GridParameters }) => state.grid.linkCells
 export const selectTypeOfCell = (state: { grid: GridParameters }) => state.grid.typeOfCell
+export const selectCurrentHoverCell = (state: { grid: GridParameters }) => state.grid.currentHoverCell
+export const selectStability = (state: { grid: GridParameters }) => state.grid.stability
+export const selectHideCells = (state: { grid: GridParameters }) => state.grid.hideCells
 
 
 export default gridParametersSlice.reducer;
