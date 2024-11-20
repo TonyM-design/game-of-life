@@ -3,10 +3,10 @@ import LateralPanelParameter from './lateralPanels/lateralPanelParameter'
 import LateralPanelController from './lateralPanels/lateralPanelController'
 import CellTooltip from './lateralPanels/cellTooltip'
 import { useDispatch, useSelector } from 'react-redux'
-import { selectGameIsActive } from './lateralPanels/reducers/controllerParameterReducer'
+import { selectGameIsActive } from '../reducers/controllerParameterReducer'
 import LateralPanelRule from './lateralPanels/lateralPanelRule'
 import LateralPanelInfos from './lateralPanels/lateralPanelInfos'
-import { selectCurrentHoverCell } from './lateralPanels/reducers/gridParametersReducer'
+import { selectCurrentHoverCell } from '../reducers/gridParametersReducer'
 
 
 function lateralMenuComponent() {

@@ -1,41 +1,51 @@
 
 import * as THREE from 'three';
 
-import { roundToTwo, vectorToString, } from '@/services/dataProcessingService';
+import { roundToTwo, stringToVector, vectorToString } from '@/services/dataProcessingService';
 
-const offsets3D: THREE.Vector3[] = [];
+const offsets3D: string[] = [];
 for (let x = -1; x <= 1; x++) {
   for (let y = -1; y <= 1; y++) {
     for (let z = -1; z <= 1; z++) {
       if (x !== 0 || y !== 0 || z !== 0) {
-        offsets3D.push(new THREE.Vector3(x, y, z));
+        offsets3D.push(`${roundToTwo(x)},${roundToTwo(y)},${roundToTwo(z)}`);
+      }
+    }
+  }
+}
+const offsets3DRedux: string[] = [];
+for (let x = -1; x <= 1; x++) {
+  for (let y = -1; y <= 1; y++) {
+    for (let z = -1; z <= 1; z++) {
+      if (x !== 0 || y !== 0 || z !== 0) {
+        offsets3DRedux.push(`${roundToTwo(x)},${roundToTwo(y)},${roundToTwo(z)}`);
       }
     }
   }
 }
 
-const offsets2D: THREE.Vector3[] = [];
+const offsets2D: string[] = [];
 for (let x = -1; x <= 1; x++) {
   for (let y = -1; y <= 1; y++) {
     if (x !== 0 || y !== 0) {
-      offsets2D.push(new THREE.Vector3(x, y, 0));
+      offsets2D.push(`${roundToTwo(x)},${roundToTwo(y)},${roundToTwo(0)}`);
     }
   }
 }
-const offsets2DExtend2Levels: THREE.Vector3[] = [];
+const offsets2DExtend2Levels: string[] = [];
 for (let x = -2; x <= 2; x++) {
   for (let y = -2; y <= 2; y++) {
     if (x !== 0 || y !== 0) {
-      offsets2DExtend2Levels.push(new THREE.Vector3(x, y, 0));
+      offsets2DExtend2Levels.push(`${roundToTwo(x)},${roundToTwo(y)},${roundToTwo(0)}`);
     }
   }
 }
 
-const offsets2DExtend3Levels: THREE.Vector3[] = [];
+const offsets2DExtend3Levels: string[] = [];
 for (let x = -3; x <= 3; x++) {
   for (let y = -3; y <= 3; y++) {
     if (x !== 0 || y !== 0) {
-      offsets2DExtend3Levels.push(new THREE.Vector3(x, y, 0));
+      offsets2DExtend3Levels.push(`${roundToTwo(x)},${roundToTwo(y)},${roundToTwo(0)}`);
     }
   }
 }
@@ -43,12 +53,12 @@ for (let x = -3; x <= 3; x++) {
 const searchNeighborInstancesPositions = (positionsList: THREE.Vector3[], startCell: THREE.Vector3, cubeSizeParameter: number, is3dContext: boolean) => {
   const neighbors: THREE.Vector3[] = []
   if (is3dContext == false) {
-    offsets2D.forEach(offsetPositon => {
+    offsets2D.forEach(offset => {
+      let offsetVector = stringToVector(offset)
       const targetPosition = new THREE.Vector3(
-        roundToTwo(Number(startCell.x) + offsetPositon.x * cubeSizeParameter),
-        roundToTwo(Number(startCell.y) + offsetPositon.y * cubeSizeParameter),
-        roundToTwo(Number(startCell.z) + offsetPositon.z * cubeSizeParameter)
-
+        roundToTwo(Number(startCell.x) + offsetVector.x * cubeSizeParameter),
+        roundToTwo(Number(startCell.y) + offsetVector.y * cubeSizeParameter),
+        roundToTwo(Number(startCell.z) + offsetVector.z * cubeSizeParameter)
       );
 
       if (positionsList.some(position =>
@@ -62,12 +72,12 @@ const searchNeighborInstancesPositions = (positionsList: THREE.Vector3[], startC
 
     })
   }
-  offsets3D.forEach(offsetPositon => {
+  offsets3D.forEach(offset => {
+    let offsetVector = stringToVector(offset)
     const targetPosition = new THREE.Vector3(
-      roundToTwo(Number(startCell.x) + offsetPositon.x * cubeSizeParameter),
-      roundToTwo(Number(startCell.y) + offsetPositon.y * cubeSizeParameter),
-      roundToTwo(Number(startCell.z) + offsetPositon.z * cubeSizeParameter)
-
+      roundToTwo(Number(startCell.x) + offsetVector.x * cubeSizeParameter),
+      roundToTwo(Number(startCell.y) + offsetVector.y * cubeSizeParameter),
+      roundToTwo(Number(startCell.z) + offsetVector.z * cubeSizeParameter)
     );
 
     if (positionsList.some(position =>
@@ -102,8 +112,8 @@ const createLinkCells = (neighbors: THREE.Vector3[], startCell: THREE.Vector3) =
   return linksToAdd
 
 }
-const drawPerimeter = (positions: THREE.Vector3[], cubeSizeParameter: number, groupCell: THREE.Vector3[], is3dContext: boolean) => {
-  const perimeter = (definePerimeter(positions, cubeSizeParameter, groupCell, is3dContext))
+const drawPerimeter = (positions: string[], cubeSizeParameter: number, groupCell: string[], is3dContext: boolean) => {
+  const perimeter = (definePerimeter(positions.map(stringToVector), cubeSizeParameter, groupCell.map(stringToVector), is3dContext))
   const geometry = new THREE.PlaneGeometry(cubeSizeParameter, cubeSizeParameter);
   const material = new THREE.MeshBasicMaterial({ color: 0xff0000, opacity: 0.1, transparent: true });
   const instancedMesh = new THREE.InstancedMesh(geometry, material, perimeter.length);
@@ -122,11 +132,12 @@ const drawPerimeter = (positions: THREE.Vector3[], cubeSizeParameter: number, gr
 const definePerimeter = (perimeterCells: THREE.Vector3[], cubeSizeParameter: number, cellPositions: THREE.Vector3[], is3dContext: boolean) => {
   let pointPerimeterList: THREE.Vector3[] = []
   for (const position of perimeterCells) {
-    offsets2D.forEach(offsetPositon => {
+    offsets2D.forEach(offset => {
+      let offsetVector = stringToVector(offset)
       const targetPosition = new THREE.Vector3(
-        roundToTwo(Number(position.x) + offsetPositon.x * cubeSizeParameter),
-        roundToTwo(Number(position.y) + offsetPositon.y * cubeSizeParameter),
-        roundToTwo(Number(position.z) + offsetPositon.z * cubeSizeParameter)
+        roundToTwo(Number(position.x) + offsetVector.x * cubeSizeParameter),
+        roundToTwo(Number(position.y) + offsetVector.y * cubeSizeParameter),
+        roundToTwo(Number(position.z) + offsetVector.z * cubeSizeParameter)
       );
       if (pointPerimeterList.some(savedPosition => savedPosition.x == targetPosition.x && savedPosition.y == targetPosition.y && savedPosition.z == targetPosition.z) == false) {
         pointPerimeterList.push(targetPosition)
@@ -139,51 +150,61 @@ const definePerimeter = (perimeterCells: THREE.Vector3[], cubeSizeParameter: num
 
 
 
-const defineCellGroup = (positionsList: THREE.Vector3[], cubeSizeParameter: number): Array<THREE.Vector3[]> => {
-  let groupList: Array<THREE.Vector3[]> = new Array()
+const defineCellGroup = (positionsList: string[], cubeSizeParameter: number, is3DContext: boolean): Array<string[]> => {
+  let groupList: Array<string[]> = new Array()
   const positions = positionsList
-  const visited = new Set();
+  const visited = new Set<string>();
 
-  const depthFirstSearch = (cell: THREE.Vector3, group: Array<THREE.Vector3>, cubeSizeParameter: number) => {
-    visited.add(vectorToString(cell));
+
+  const depthFirstSearch = (cell: string, group: string[], cubeSizeParameter: number) => {
+    visited.add(cell);
     group.push(cell);
+    const vectorPositionCell = stringToVector(cell)
     for (const offset of offsets2D) {
+      let vectorOffset = stringToVector(offset)
       const neighbor = new THREE.Vector3(
-        roundToTwo(Number(cell.x) + offset.x * cubeSizeParameter),
-        roundToTwo(Number(cell.y) + offset.y * cubeSizeParameter),
-        roundToTwo(Number(cell.z) + offset.z * cubeSizeParameter)
+        roundToTwo(Number(vectorPositionCell.x) + vectorOffset.x * cubeSizeParameter),
+        roundToTwo(Number(vectorPositionCell.y) + vectorOffset.y * cubeSizeParameter),
+        roundToTwo(Number(vectorPositionCell.z) + vectorOffset.z * cubeSizeParameter)
       );
       if (
-        positions.some(position =>
+        positions.map(stringToVector).some(position =>
+          
           position.x == neighbor.x && position.y == neighbor.y && position.z == neighbor.z) &&
         !visited.has(vectorToString(neighbor))
       ) {
-        depthFirstSearch(neighbor, group, cubeSizeParameter);
+        depthFirstSearch(vectorToString(neighbor), group, cubeSizeParameter);
       }
     }
+
+
   }
-  for (const pos of positions) {
-    if (!visited.has(vectorToString(pos))) {
-      const group: THREE.Vector3[] = [];
-      depthFirstSearch(pos, group, cubeSizeParameter);
-      groupList.push(group);
-    }
+
+
+
+for (const pos of positions) {
+  if (!visited.has(pos)) {
+    const group: string[] = [];
+    depthFirstSearch(pos, group, cubeSizeParameter);
+    groupList.push(group);
   }
-  return groupList
+}
+return groupList
 }
 
 
 
-const definePerimeterCellGroup = (groupCell: THREE.Vector3[], prevBoxPositions: THREE.Vector3[], cubeSizeParameter: number, is3dContext: boolean) => {
-  const perimiterLimits = getMinMax(groupCell);
-  const newCellGroup: THREE.Vector3[] = groupCell.filter(cell => {
-    const x = Number(cell.x);
-    const y = Number(cell.y);
+const definePerimeterCellGroup = (groupCell: string[], prevBoxPositions: string[], cubeSizeParameter: number, is3dContext: boolean) => {
+  const perimiterLimits = getMinMax(groupCell.map(stringToVector));
+  const newCellGroup: string[] = groupCell.filter(cell => {
+
+    const x = Number(stringToVector(cell).x);
+    const y = Number(stringToVector(cell).y);
     return (
       ((x === Number(perimiterLimits.minX) ||
         x === Number(perimiterLimits.maxX) ||
         y === Number(perimiterLimits.minY) ||
-        y === Number(perimiterLimits.maxY)) || (deadBoxAround2D(prevBoxPositions, cell, cubeSizeParameter) === true))
+        y === Number(perimiterLimits.maxY)) || (deadBoxAround2D(prevBoxPositions.map(stringToVector), stringToVector(cell), cubeSizeParameter) === true))
     );
   });
   const perimeter = drawPerimeter(newCellGroup, cubeSizeParameter, groupCell, is3dContext);
@@ -223,17 +244,17 @@ const getMinMax = (positionsList: THREE.Vector3[]) => {
 }
 
 const verifyCellAround3D = (
-  parameterLimit: number,
   prevBoxPositions: THREE.Vector3[],
   positionToVerify: THREE.Vector3,
   cubeSizeParameter: number
 ): number => {
   let counterPosition = 0;
   offsets3D.forEach((offset) => {
+    let offsetVector = stringToVector(offset)
     const targetPosition = new THREE.Vector3(
-      roundToTwo(Number(positionToVerify.x) + offset.x * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.y) + offset.y * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.z) + offset.z * cubeSizeParameter)
+      roundToTwo(Number(positionToVerify.x) + offsetVector.x * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.y) + offsetVector.y * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.z) + offsetVector.z * cubeSizeParameter)
     );
     if (prevBoxPositions.some(position =>
       position.x == targetPosition.x &&
@@ -246,6 +267,7 @@ const verifyCellAround3D = (
 
   return counterPosition;
 };
+
 const verifyCellAround2D = (
   parameterLimit: number,
   prevBoxPositions: THREE.Vector3[],
@@ -253,7 +275,7 @@ const verifyCellAround2D = (
   cubeSizeParameter: number
 ): number => {
 
-  let contextOffset: THREE.Vector3[] = []
+  let contextOffset: string[] = []
   if (parameterLimit <= 8) {
     contextOffset = offsets2D
   }
@@ -267,10 +289,11 @@ const verifyCellAround2D = (
   }
   let counterPosition = 0;
   contextOffset.forEach((offset) => {
+    let offsetVector = stringToVector(offset)
     const targetPosition = new THREE.Vector3(
-      roundToTwo(Number(positionToVerify.x) + offset.x * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.y) + offset.y * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.z) + offset.z * cubeSizeParameter)
+      roundToTwo(Number(positionToVerify.x) + offsetVector.x * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.y) + offsetVector.y * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.z) + offsetVector.z * cubeSizeParameter)
     );
     if (prevBoxPositions.some(position =>
       position.x == targetPosition.x &&
@@ -291,12 +314,12 @@ const deadBoxAround2D = (
 
   return offsets2D.some((offset) => {
 
+    let offsetVector = stringToVector(offset)
     const targetPosition = new THREE.Vector3(
-      roundToTwo(Number(positionToVerify.x) + offset.x * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.y) + offset.y * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.z) + offset.z * cubeSizeParameter)
+      roundToTwo(Number(positionToVerify.x) + offsetVector.x * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.y) + offsetVector.y * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.z) + offsetVector.z * cubeSizeParameter)
     );
-
     return !prevBoxPositions.some(position =>
       position.x == targetPosition.x &&
       position.y == targetPosition.y &&
@@ -304,6 +327,7 @@ const deadBoxAround2D = (
     );
   });
 };
+
 const returnDeadCellAround = (
   prevBoxPositions: THREE.Vector3[],
   positionToVerify: THREE.Vector3,
@@ -313,19 +337,18 @@ const returnDeadCellAround = (
   const deadCellsAround: THREE.Vector3[] = [];
   const offsets = is3D ? offsets3D : offsets2D;
 
-  const existingPositionsSet = new Set(prevBoxPositions.map(pos => `${pos.x},${pos.y},${pos.z}`));
+  const existingPositionsSet = new Set(prevBoxPositions.map(vectorToString));
   offsets.forEach((offset) => {
+    let offsetVector = stringToVector(offset)
     const targetPosition = new THREE.Vector3(
-      roundToTwo(Number(positionToVerify.x) + offset.x * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.y) + offset.y * cubeSizeParameter),
-      roundToTwo(Number(positionToVerify.z) + offset.z * cubeSizeParameter)
+      roundToTwo(Number(positionToVerify.x) + offsetVector.x * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.y) + offsetVector.y * cubeSizeParameter),
+      roundToTwo(Number(positionToVerify.z) + offsetVector.z * cubeSizeParameter)
     );
 
     if (
-      !existingPositionsSet.has(`${targetPosition.x},${targetPosition.y},${targetPosition.z}`) &&
-      !(targetPosition.x == positionToVerify.x &&
-        targetPosition.y == positionToVerify.y &&
-        targetPosition.z == positionToVerify.z)
+      !existingPositionsSet.has(vectorToString(targetPosition)) &&
+      !targetPosition.equals(positionToVerify)
     ) {
       deadCellsAround.push(targetPosition);
     }
@@ -335,4 +358,4 @@ const returnDeadCellAround = (
 
 
 
-export { verifyCellAround3D, verifyCellAround2D, returnDeadCellAround, defineCellGroup, definePerimeterCellGroup, searchNeighborInstancesPositions, createLinkCells }
+export { verifyCellAround3D, verifyCellAround2D, roundToTwo, returnDeadCellAround, defineCellGroup, definePerimeterCellGroup, searchNeighborInstancesPositions, createLinkCells }

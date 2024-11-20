@@ -3,23 +3,23 @@ import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 interface infoParameter {
     numberFrame: number;
     cellsNumber: number;
-    stableCellsNumber: number;
-    unstableCellsNumber: number;
+    oldCellsNumber: number;
+    newCellsNumber: number;
     hoverPoint: HoverPointState | null;
     showAllCell: boolean,
-    showStableCell: boolean,
-    showUnstableCell: boolean
+    showOldCell: boolean,
+    showNewCell: boolean
 }
 
 const initialState: infoParameter = {
     numberFrame: 0,
     cellsNumber: 0,
-    stableCellsNumber: 0,
-    unstableCellsNumber: 0,
+    oldCellsNumber: 0,
+    newCellsNumber: 0,
     hoverPoint: null,
     showAllCell: true,
-    showStableCell: false,
-    showUnstableCell: false
+    showOldCell: false,
+    showNewCell: false
 }
 interface DataPoint {
     frame: number;
@@ -43,11 +43,11 @@ export const infoParameterSlice = createSlice(
             setCellsNumber: (state, action: PayloadAction<number>) => {
                 state.cellsNumber = action.payload
             },
-            setStableCellsNumber: (state, action: PayloadAction<number>) => {
-                state.stableCellsNumber = action.payload;
+            setOldCellsNumber: (state, action: PayloadAction<number>) => {
+                state.oldCellsNumber = action.payload;
             },
-            setUnstableCellsNumber: (state, action: PayloadAction<number>) => {
-                state.unstableCellsNumber = action.payload;
+            setNewCellsNumber: (state, action: PayloadAction<number>) => {
+                state.newCellsNumber = action.payload;
             },
             setHoverPoint: (state, action: PayloadAction<HoverPointState | null>) => {
                 state.hoverPoint = action.payload;
@@ -55,11 +55,11 @@ export const infoParameterSlice = createSlice(
             setShowAllCell: (state, action: PayloadAction<boolean>) => {
                 state.showAllCell = action.payload
             },
-            setShowStableCell: (state, action: PayloadAction<boolean>) => {
-                state.showStableCell = action.payload
+            setShowOldCell: (state, action: PayloadAction<boolean>) => {
+                state.showOldCell = action.payload
             },
-            setShowUnstableCell: (state, action: PayloadAction<boolean>) => {
-                state.showUnstableCell = action.payload
+            setShowNewCell: (state, action: PayloadAction<boolean>) => {
+                state.showNewCell = action.payload
             },
         }
     }
@@ -68,19 +68,19 @@ export const infoParameterSlice = createSlice(
 export const {
     setNumberFrame,
     setCellsNumber,
-    setStableCellsNumber,
-    setUnstableCellsNumber,
+    setOldCellsNumber,
+    setNewCellsNumber,
     setHoverPoint,
     setShowAllCell,
-    setShowStableCell,
-    setShowUnstableCell } = infoParameterSlice.actions;
+    setShowOldCell,
+    setShowNewCell } = infoParameterSlice.actions;
 
 export const selectNumberFrame = (state: { info: infoParameter }) => state.info.numberFrame
 export const selectCellsNumber = (state: { info: infoParameter }) => state.info.cellsNumber
-export const selectStableCellsNumber = (state: { info: infoParameter }) => state.info.stableCellsNumber
-export const selectUnstableCellsNumber = (state: { info: infoParameter }) => state.info.unstableCellsNumber
+export const selectOldCellsNumber = (state: { info: infoParameter }) => state.info.oldCellsNumber
+export const selectNewCellsNumber = (state: { info: infoParameter }) => state.info.newCellsNumber
 export const selectHoverPoint = (state: { info: infoParameter }) => state.info.hoverPoint
 export const selectShowAllCell = (state: { info: infoParameter }) => state.info.showAllCell
-export const selectShowStableCell = (state: { info: infoParameter }) => state.info.showStableCell
-export const selectShowUnstableCell = (state: { info: infoParameter }) => state.info.showUnstableCell
+export const selectShowOldCell = (state: { info: infoParameter }) => state.info.showOldCell
+export const selectShowNewCell = (state: { info: infoParameter }) => state.info.showNewCell
 export default infoParameterSlice.reducer;

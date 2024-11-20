@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { selectCurrentHoverCell } from "./reducers/gridParametersReducer"
+import { selectCurrentHoverCell } from "../../reducers/gridParametersReducer"
 import { useSelector } from "react-redux"
 
 interface HoverPointState {
@@ -17,7 +17,7 @@ function cellTooltip(props : HoverPointState ) {
         <div 
             className="absolute overflow-visible z-10 bg-slate-700 rounded-md bg-opacity-75 p-0.5"
             style={{ 
-                top: props.mouseY + 10, // Ajustement de l'offset
+                top: props.mouseY + 10, 
                 left: props.mouseX + 10, 
                 position: 'fixed'
             }}

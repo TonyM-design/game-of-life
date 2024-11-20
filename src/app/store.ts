@@ -1,10 +1,10 @@
 
 
 import { configureStore } from '@reduxjs/toolkit'
-import gridParametersReducer from './components/lateralPanels/reducers/gridParametersReducer'
-import controllerParameterReducer from './components/lateralPanels/reducers/controllerParameterReducer'
-import infoParametersReducer from './components/lateralPanels/reducers/infoParametersReducer'
-import globalGameReducer from './components/lateralPanels/reducers/globalGameReducer'
+import gridParametersReducer from './reducers/gridParametersReducer'
+import controllerParameterReducer from './reducers/controllerParameterReducer'
+import infoParametersReducer from './reducers/infoParametersReducer'
+import globalGameReducer from './reducers/globalGameReducer'
 export const store = configureStore({
     reducer: {
         grid : gridParametersReducer,
@@ -12,6 +12,10 @@ export const store = configureStore({
         info : infoParametersReducer,
         global : globalGameReducer
     },
+    middleware: (getDefaultMiddleware) =>
+        getDefaultMiddleware({
+          serializableCheck: false,
+        }),
   })
   
   export type RootState = ReturnType<typeof store.getState>

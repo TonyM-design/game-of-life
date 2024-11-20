@@ -5,30 +5,23 @@ import { faPlay } from '@fortawesome/free-solid-svg-icons/faPlay'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import React, { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
-import { selectGameIsActive, selectNumberFrame, setGameIsActive, setUploadModalIsOpen } from './reducers/controllerParameterReducer';
+import { selectGameIsActive, selectNumberFrame, setCellsNumber, setGameIsActive, setNumberFrame, setResetIsRequired, setUploadModalIsOpen } from '../../reducers/controllerParameterReducer';
 import { faFolderOpen } from '@fortawesome/free-solid-svg-icons/faFolderOpen';
 import * as THREE from 'three';
-import { selectBirthRate, selectGridIs3DGrid, selectLonelinessLimit, selectStability, selectSurpopulationLimit } from './reducers/gridParametersReducer';
-import { selectCellPositions, selectLoadedCellPositions, setCellPositions, setStepByStepMode } from './reducers/globalGameReducer';
+import { selectBirthRate, selectGridIs3DGrid, selectLonelinessLimit, selectSurpopulationLimit } from '../../reducers/gridParametersReducer';
+import { selectCellPositions, selectLoadedCellPositions, setCellPositions, setStepByStepMode } from '../../reducers/globalGameReducer';
+import { setNewCellsNumber, setOldCellsNumber } from '@/app/reducers/infoParametersReducer';
 
 
 function lateralPanelController() {
     const [rulesToSave, setRulesToSave] = useState<SavedRules | null>(null)
-    const [cellsToSave, setCellsToSave] = useState<THREE.Vector3[]>([])
-
-
-    const positionCellToLoad: string[] = useSelector(selectLoadedCellPositions)
-
+    const cellsToSave = useSelector(selectCellPositions)
     const cellPosition = useSelector(selectCellPositions)
-    const gameIsActive: boolean = useSelector(selectGameIsActive)
     const dispatch = useDispatch();
     const savedZAxis: boolean = useSelector(selectGridIs3DGrid)
     const savedBirthRate: number = useSelector(selectBirthRate)
     const savedSurpopulation: number = useSelector(selectSurpopulationLimit)
     const savedLoneliness: number = useSelector(selectLonelinessLimit)
-    const savedStability: number = useSelector(selectStability)
-
-    let clickTest: boolean = false
 
     const startGame = () => {
         dispatch(setStepByStepMode(false))
@@ -36,7 +29,6 @@ function lateralPanelController() {
     }
     const stopGame = () => {
         dispatch(setGameIsActive(false))
-        console.log(gameIsActive)
 
     }
     const openUploadModal = () => {
@@ -45,8 +37,11 @@ function lateralPanelController() {
 
     const reset = () => {
         dispatch(setGameIsActive(false))
-        const resetPositions: string[] = [];
-        dispatch(setCellPositions(resetPositions))
+        dispatch(setResetIsRequired(true))
+        dispatch(setCellPositions([]))
+        dispatch(setCellsNumber(0))
+        dispatch(setOldCellsNumber(0))
+        dispatch(setNewCellsNumber(0))
     }
 
     const nextFrame = () => {
@@ -58,18 +53,15 @@ function lateralPanelController() {
         birthRate: number,
         surpopulation: number,
         loneliness: number,
-        stability: number
     }
 
     interface SavedData {
         rule: SavedRules;
-        cellPositions: THREE.Vector3[];
+        cellPositions: string[];
     }
 
 
     const saveJsonToFile = () => {
-        console.log(rulesToSave)
-        console.log(cellsToSave)
         if (rulesToSave !== null && cellsToSave !== null) {
             const savedData: SavedData = {
                 rule: rulesToSave,
@@ -88,18 +80,20 @@ function lateralPanelController() {
     };
 
 
+    const loadFile = () => {
+
+    }
+
+
     useEffect(() => {
-   /*     console.log("test useEffect !!!")
         const newSavedRule: SavedRules = {
             zAxis: savedZAxis,
             birthRate: savedBirthRate,
             surpopulation: savedSurpopulation,
             loneliness: savedLoneliness,
-            stability: savedStability
         }
         setRulesToSave(newSavedRule)
-        const newSavedCellPositions: [] = cellPosition
-        setCellsToSave(newSavedCellPositions)*/
+
     }, [cellPosition])
 
 

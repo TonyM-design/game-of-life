@@ -1,21 +1,18 @@
 "use client";
 
-import React, { Ref, RefObject, useCallback, useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/Addons.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { useDispatch, useSelector } from 'react-redux';
-import { selectGridHeight, selectGridWidth, selectGridDepth, selectGridIs3DGrid, selectCubeSize, selectBirthRate, selectSurpopulationLimit, selectLonelinessLimit, selectSpeed, selectHideGrid, selectPerimeter, selectTypeOfCell, selectLinkCells, setCurrentHoverCell, selectStability, selectHideCells } from './lateralPanels/reducers/gridParametersReducer';
-import { selectNumberFrame, setCellsNumber, setNumberFrame, setUnstableCellsNumber, setStableCellsNumber } from '../components/lateralPanels/reducers/infoParametersReducer'
+import { selectGridHeight, selectGridWidth, selectGridDepth, selectGridIs3DGrid, selectCubeSize, selectBirthRate, selectSurpopulationLimit, selectLonelinessLimit, selectSpeed, selectHideGrid, selectPerimeter, selectTypeOfCell, selectLinkCells, setCurrentHoverCell, selectHideCells } from '../reducers/gridParametersReducer';
+import { selectNumberFrame, setCellsNumber, setNumberFrame, setNewCellsNumber, setOldCellsNumber } from '../reducers/infoParametersReducer'
 import { setTimeout } from 'timers';
 import { returnDeadCellAround, verifyCellAround2D, verifyCellAround3D, defineCellGroup, definePerimeterCellGroup, searchNeighborInstancesPositions, createLinkCells, } from '@/services/gameService';
-import { stringToVector, vectorsAreEqual, vectorToString } from '@/services/dataProcessingService';
-import { selectGameIsActive, selectLoadedData } from './lateralPanels/reducers/controllerParameterReducer';
-import ModalComponent from './modalComponent';
-import { selectCellPositions, selectLoadedCellPositions, selectStepByStepMode, setCellPositions, setStepByStepMode } from './lateralPanels/reducers/globalGameReducer';
-import { instance } from 'three/examples/jsm/nodes/Nodes.js';
+import { stringToVector, vectorToString } from '@/services/dataProcessingService';
+import { selectGameIsActive, selectResetIsRequired, setResetIsRequired } from '../reducers/controllerParameterReducer';
+import { selectCellPositions, selectLoadedCellPositions, selectStepByStepMode, setCellPositions, setStepByStepMode } from '../reducers/globalGameReducer';
 
 function threeJSSceneComponent() {
     const dispatch = useDispatch()
@@ -35,8 +32,8 @@ function threeJSSceneComponent() {
     const linkCells: boolean = useSelector(selectLinkCells)
     const typeOfCell: String = useSelector(selectTypeOfCell)
     const stepByStepMode: boolean = useSelector(selectStepByStepMode)
-    const stabilityLimit: number = useSelector(selectStability)
-    const hideCells: boolean = useSelector(selectHideCells)
+    const hideCellsIsRequested: boolean = useSelector(selectHideCells)
+    const resetIsRequired: boolean = useSelector(selectResetIsRequired)
     // <-- scene 
     const workspace3D = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
@@ -44,6 +41,9 @@ function threeJSSceneComponent() {
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const controlsRef = useRef<any>(null);
     const composerRef = useRef<any>(null);
+    const cellsAreHiden = useRef<boolean>(false)
+
+
     const [positionCamera, setPositionCamera] = useState<THREE.Vector3>(new THREE.Vector3(0, 50, 100));
     const [positionMouse, setPositionMouse] = useState<THREE.Vector3 | null>(null);;
     // <-- scene END
@@ -54,186 +54,83 @@ function threeJSSceneComponent() {
     // <-- grid END
 
     // <-- load & save data
-    const loadedData = useSelector(selectLoadedData)
     const [importedDataIsLoad, setImportedDataIsLoad] = useState<boolean>(false)
     const positionCellToLoad: string[] = useSelector(selectLoadedCellPositions)
     // <-- load && save data END
 
-    const [positionsGenerated, setPositionsGenerated] = useState<THREE.Vector3[]>([]);
     // cell position redux 
     const cellsPositionsGenerated: string[] = useSelector(selectCellPositions)
+    const prevCellsPositionGeneratedRef = useRef<string[]>([]);
 
-    const [instancesGenerated, setInstancesGenerated] = useState<THREE.InstancedMesh | null>(null);
+
+    const [objectCellGenerated, setObjectCellGenerated] = useState<THREE.Object3D[] | null>(null);
     const [particlesGenerated, setParticlesGenerated] = useState<THREE.Points | null>(null);
-    const [particlesPlanesGenerated, setParticlesPlanesGenerated] = useState<THREE.Points | null>(null);
 
     const [perimeterObjects, setPerimeterObjects] = useState<THREE.Object3D[]>([]);
     const [linksCells, setLinksCells] = useState<THREE.Object3D[]>([])
 
-    const [perimeterList, setPerimeterList] = useState<THREE.Vector3[][]>([]);
-
-    interface Cell {
-        id: String,
-        position: THREE.Vector3,
-        iterationWithoutChange: number,
-        neighborCounter: number,
-        stable: boolean;
-    }
 
 
-    // a conserver sert our l'optimisation uniquement
 
-    const [stableCellsList, setStableCellsList] = useState<THREE.Vector3[]>([]);
-    const [unstableCellsList, setUnstableCellsList] = useState<THREE.Vector3[]>([]);
-    const [prevCellStatusList, setPrevCellStatusList] = useState<Cell[]>([]);
-    const [currentCellStatusList, setCurrentCellStatusList] = useState<Cell[]>([]);
+    const updateCells = () => {
+        const newCells: string[] = cellsPositionsGenerated.filter(pos => !prevCellsPositionGeneratedRef.current.some(position => position == pos))
+        const oldCells: string[] = cellsPositionsGenerated.filter(pos => prevCellsPositionGeneratedRef.current.some(position => position == pos))
+        sceneRef.current?.children.forEach(child => {
+            if (child.userData.isBox || child.userData.isPlane) {
+                if (child instanceof THREE.Mesh) {
 
-
-    const filterByStability = () => {
-        const stableCellSet: Set<THREE.Vector3> = new Set()
-        const unstableCellSet: Set<THREE.Vector3> = new Set()
-        const newCurrentCellStatusList: Cell[] = [];
-        // uniquement si la stability est activé et donc different de 0
-        if (stabilityLimit !== 0) {
-            // pour initialisation uniquement : si il n'y pas eu d'itérations au prealable et donc pas de prevlist a comparé on en créer une
-            if (prevCellStatusList.length === 0) {
-                positionsGenerated.forEach(cellPosition => {
-                    const Cell: Cell = {
-                        id: vectorToString(cellPosition),
-                        position: cellPosition,
-                        iterationWithoutChange: 0,
-                        neighborCounter: verifyCellAround2D((surpopulationLimit > birthRate ? surpopulationLimit : birthRate), positionsGenerated, cellPosition, cubeSizeParameter),
-                        stable: false
-                    };
-                    newCurrentCellStatusList.push(Cell);
-                });
-                console.log("bloc initialisation des liste des status des cellules")
-                setPrevCellStatusList(newCurrentCellStatusList);
-                //  setCurrentCellStatusList(newCurrentCellStatusList);
-            }
-
-            // sinon dans la plupart des cas 
-
-            console.log(" bloc comportement general")
-            for (const cellPosition of positionsGenerated) {
-                const Cell: Cell = {
-                    id: vectorToString(cellPosition),
-                    position: cellPosition,
-                    iterationWithoutChange: 0,
-                    neighborCounter: verifyCellAround2D((surpopulationLimit > birthRate ? surpopulationLimit : birthRate), positionsGenerated, cellPosition, cubeSizeParameter),
-                    stable: false
-                };
-                // on cherche la cell par son id pour trouver son status
-                const prevCellMap = new Map(prevCellStatusList.map(cell => [cell.id, cell]));
-                const prevCell = prevCellMap.get(Cell.id);
-                if (prevCell !== undefined) {
-                    // si il y a changement entre ancien nombe cell voisine et le nombre de cell voisine de la nouvelle cellule
-                    if (prevCell.neighborCounter !== Cell.neighborCounter) {
-                        Cell.stable = false;
-                        Cell.iterationWithoutChange = 0;
-                    }
-                    // sinon si aucun changement on increment le counter de stability
-                    else {
-                        Cell.iterationWithoutChange = prevCell.iterationWithoutChange + 1;
-                    }
-
-
-                    if (Cell.iterationWithoutChange >= stabilityLimit) {
-                        Cell.stable = true;
-                    }
+                    const material = new THREE.MeshPhysicalMaterial({
+                        color: newCells.some(pos => pos == vectorToString(child.position)) ? 0x1bff00 : 0xf9fafb,
+                        transparent: true,
+                        opacity: 0.5,
+                        reflectivity: 1
+                    });
+                    child.material = material
+                    child.material.needUpdate = true
                 }
 
-                // maj de la liste des status
-                if (!newCurrentCellStatusList.some(Cell => Cell.position.equals(cellPosition)))
-                    newCurrentCellStatusList.push(Cell);
             }
+        })
 
-            console.log(newCurrentCellStatusList)
-            // filtre et ajoute les cells instables
-            console.log(newCurrentCellStatusList.filter(cell => !cell.stable))
-            console.log(newCurrentCellStatusList.filter(cell => cell.stable))
-
-            newCurrentCellStatusList
-                .filter(cell => !cell.stable)
-                .forEach(cellUnstable => {
-                    const cellPosition = new THREE.Vector3(cellUnstable.position.x, cellUnstable.position.y, cellUnstable.position.z);
-                    unstableCellSet.add(cellPosition);
-
-                });
-
-            newCurrentCellStatusList
-                .filter(cell => cell.stable).forEach(cellStable => {
-                    const cellPosition = new THREE.Vector3(cellStable.position.x, cellStable.position.y, cellStable.position.z)
-
-                    stableCellSet.add(cellPosition);
-
-                })
+        dispatch(setOldCellsNumber(newCells.length));
+        dispatch(setNewCellsNumber(oldCells.length));
+        const allCellNumber = (newCells.length + oldCells.length)
+        dispatch(setCellsNumber(allCellNumber))
 
 
-            setPrevCellStatusList(currentCellStatusList);
-            setCurrentCellStatusList(newCurrentCellStatusList);
-            const stableArray = Array.from(stableCellSet);
-            const unstableArray = Array.from(unstableCellSet);
-
-            setStableCellsList(stableArray);
-            setUnstableCellsList(unstableArray);
-
-            dispatch(setStableCellsNumber(stableArray.length));
-            dispatch(setUnstableCellsNumber(unstableArray.length));
-            console.log("StableCell", stableArray);
-            console.log("UnstableCell", unstableArray);
-
-            console.log(newCurrentCellStatusList);
-            console.log("nombre total de positionGenerated  ", positionsGenerated.length, positionsGenerated);
-
-        }
-
-        return { unstableCellSet, stableCellSet };
+        return { newCells, oldCells };
 
     };
+
     // <-- THREE scene initializer START
     const initScene = (workspace3D: React.RefObject<HTMLDivElement>, positionCameraToLoad: THREE.Vector3) => {
         const scene: THREE.Scene = new THREE.Scene();
         let camera: THREE.PerspectiveCamera = new THREE.PerspectiveCamera(50, (window.innerWidth / window.innerHeight), 0.1, 2000);
         const renderer: THREE.WebGLRenderer = new THREE.WebGLRenderer({ antialias: true });
 
-        // RENDERER
         renderer.setSize(window.innerWidth, window.innerHeight)
         renderer.toneMapping = THREE.NeutralToneMapping;
 
         if (workspace3D.current) {
             workspace3D.current.appendChild(renderer.domElement)
         }
-        //CAMERA
+
         camera.position.set(0, -10, 10);
         camera.lookAt(150, 0, 0);
-        //CONTROLS
+
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = false;
         controls.saveState
-        //LIGHT
 
         const light = new THREE.AmbientLight(0x404040, 10);
         scene.add(light);
-        //POST-EFFECT       
+
         const composer = new EffectComposer(renderer);
         const renderPass = new RenderPass(scene, camera);
         composer.addPass(renderPass);
-       
-        //    composer.addPass(bloomPass);
         return { scene, camera, renderer, controls, composer };
     }
     // <-- THREE scene initializer END
-
-
-    const getInstancePosition = (instancedMesh: THREE.InstancedMesh, instanceId: number): THREE.Vector3 => {
-        const dummy = new THREE.Object3D();
-        instancedMesh.getMatrixAt(instanceId, dummy.matrix);
-        dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
-        const position = dummy.position.clone();
-        return position;
-    };
-
 
 
     // <-- grid methods bloc START
@@ -251,16 +148,16 @@ function threeJSSceneComponent() {
         }
         return positions
     }
-    function generatePlaneInstance(scene: THREE.Scene, positions: THREE.Vector3[]) {
+    function generatePlaneInstance(scene: THREE.Scene, positionsGrid: THREE.Vector3[]) {
         const geometry = new THREE.PlaneGeometry(cubeSizeParameter, cubeSizeParameter);
         const material = new THREE.MeshBasicMaterial({
             color: 0x9ca3af
             , wireframe: true
         });
-        const instancedMesh = new THREE.InstancedMesh(geometry, material, positions.length);
+        const instancedMesh = new THREE.InstancedMesh(geometry, material, positionsGrid.length);
         const dummy = new THREE.Object3D();
-        positions.filter(position => !positionsGenerated.some(prevPosition => prevPosition.equals(position)))
-        positions.forEach((position, index) => {
+        positionsGrid.filter(position => !positionsGrid.some(prevPosition => prevPosition.equals(position)))
+        positionsGrid.forEach((position, index) => {
             dummy.position.copy(position);
             dummy.updateMatrix();
             instancedMesh.setMatrixAt(index, dummy.matrix);
@@ -273,21 +170,6 @@ function threeJSSceneComponent() {
 
 
     // <-- cell management START
-    function addPositionCell(clickedPosition: THREE.Vector3) {
-        const currentCellPositions = positionsGenerated
-        const x: string = (clickedPosition.x as unknown as number).toFixed(1);
-        const y: string = (clickedPosition.y as unknown as number).toFixed(1);
-        const z: string = (clickedPosition.z as unknown as number).toFixed(1);
-        const newPositionToExclude = new THREE.Vector3((x as unknown) as number, (y as unknown) as number, (z as unknown) as number)
-        if (!currentCellPositions.some(cell => vectorsAreEqual(newPositionToExclude, cell))) {
-            currentCellPositions.push(newPositionToExclude)
-            return currentCellPositions
-        } else {
-            return currentCellPositions.filter((cell) => !vectorsAreEqual(newPositionToExclude, cell))
-        }
-    }
-
-
     function addPositionCellByRedux(clickedPosition: THREE.Vector3) {
         const x: string = (clickedPosition.x as unknown as number).toFixed(1);
         const y: string = (clickedPosition.y as unknown as number).toFixed(1);
@@ -304,100 +186,239 @@ function threeJSSceneComponent() {
         }
     }
 
-    const generateParticle = (scene: THREE.Scene, positions: THREE.Vector3[]) => {
+    const generateParticle = (scene: THREE.Scene) => {
+        const positionsList = cellsPositionsGenerated.map(stringToVector)
         if (typeOfCell == "Point") {
             const geometry = new THREE.BufferGeometry();
-            const positions = new Float32Array(positionsGenerated.length * 3);
-            for (let i = 0; i < positionsGenerated.length; i++) {
-                positions[i * 3] = positionsGenerated[i].x;
-                positions[i * 3 + 1] = positionsGenerated[i].y;
-                positions[i * 3 + 2] = positionsGenerated[i].z;
+            const positions = new Float32Array(positionsList.length * 3);
+            for (let i = 0; i < positionsList.length; i++) {
+                positions[i * 3] = positionsList[i].x;
+                positions[i * 3 + 1] = positionsList[i].y;
+                positions[i * 3 + 2] = positionsList[i].z;
             }
+
             geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
             const material = new THREE.PointsMaterial({
                 color: 0xff42ff,
                 size: cubeSizeParameter / 2,
             });
             const particles = new THREE.Points(geometry, material);
-
             particles.userData.isPoint = true;
-            particles.userData.isStable = false;
-
             scene.add(particles);
+
             return particles;
         }
         else return null;
     }
 
-    // invisible plane is used with celltype "particle" to ease onClik event
-    const generateInvisiblePlane = (scene: THREE.Scene, positions: THREE.Vector3[]) => {
-        const geometry = new THREE.PlaneGeometry(cubeSizeParameter, cubeSizeParameter);
-        const material = new THREE.MeshBasicMaterial({
-            opacity: 0,
-            transparent: true
-
-        }); const instancedMeshPlane = new THREE.InstancedMesh(geometry, material, positions.length);
-        const dummy = new THREE.Object3D();
-
-        positionsGenerated.forEach((position, index) => {
-            dummy.position.copy(position);
-            dummy.updateMatrix();
-            instancedMeshPlane.setMatrixAt(index, dummy.matrix);
+    const createBoxCell = (position: THREE.Vector3) => {
+        const geometry = new THREE.BoxGeometry(cubeSizeParameter, cubeSizeParameter, cubeSizeParameter);
+        const material = new THREE.MeshPhysicalMaterial({
+            color: 0x1bff00,
+            transparent: true,
+            opacity: 0.5,
+            reflectivity: 1
         });
-        instancedMeshPlane.userData.isPlane = true
-        scene.add(instancedMeshPlane);
-        return instancedMeshPlane;
+        const newBoxObject = new THREE.Mesh(geometry, material);
+        newBoxObject.position.set(position.x, position.y, position.z)
+        newBoxObject.userData.isBox = true;
+        return newBoxObject
     }
 
-    const generateAllTypeInstance = (scene: THREE.Scene, positions: THREE.Vector3[]) => {
+    const createPlaneCell = (position: THREE.Vector3) => {
+        const geometry = new THREE.PlaneGeometry(cubeSizeParameter, cubeSizeParameter);
+        const material = new THREE.MeshPhysicalMaterial({
+            color: 0x1bff00,
+            transparent: true,
+            opacity: 0.5,
+            reflectivity: 1
+        });
+        const newPlaneObject = new THREE.Mesh(geometry, material);
+        newPlaneObject.position.set(position.x, position.y, position.z)
+        newPlaneObject.userData.isBox = false;
+        return newPlaneObject
+    }
 
+    const hideCells = () => {
+        if (typeOfCell !== "Point") {
+            objectCellGenerated?.forEach(object => {
+                sceneRef.current!.remove(object)
+            })
+        }
+        else sceneRef.current!.remove(particlesGenerated!)
+
+    }
+
+    const changeCellType = () => {
+        if (objectCellGenerated) {
+            objectCellGenerated.forEach(object => {
+                sceneRef.current!.remove(object)
+            })
+        }
+        if (particlesGenerated) {
+            sceneRef.current!.remove(particlesGenerated)
+        }
+
+        if (typeOfCell == "Plane" || typeOfCell == "Box") {
+            if (typeOfCell == "Box") {
+                prevCellsPositionGeneratedRef.current.filter(prevCell => !sceneRef.current?.children
+                    .some(children => children.userData.id == prevCell))
+                    .forEach((position, index) => {
+                    const newBox = createBoxCell(stringToVector(position))
+                    newBox.userData.id = position
+                    newBox.userData.isBox = true
+                    sceneRef.current!.add(newBox)
+
+                })
+            }
+            else if (typeOfCell == "Plane") {
+                prevCellsPositionGeneratedRef.current.filter(prevCell => !sceneRef.current?.children
+                    .some(children => children.userData.id == prevCell))
+                    .forEach((position, index) => {
+                    const newPlane = createPlaneCell(stringToVector(position))
+                    newPlane.userData.id = position
+                    newPlane.userData.isPlane = true
+                    sceneRef.current!.add(newPlane)
+                })
+            }
+        }
+
+
+        if (typeOfCell == "Point") {
+            generateParticle(sceneRef.current!)
+        }
+
+
+
+    }
+
+
+
+    const generateMeshObjects = (scene: THREE.Scene) => {
         if (typeOfCell == "Box") {
-            const geometry = new THREE.BoxGeometry(cubeSizeParameter, cubeSizeParameter, cubeSizeParameter);
-            const material = new THREE.MeshPhysicalMaterial({
-                color: 0xf9fafb,
-                transparent: true,
-                opacity: 0.5,
-                reflectivity: 1
-            });
-            const instancedMeshCube = new THREE.InstancedMesh(geometry, material, positions.length);
-            const dummy = new THREE.Object3D();
+            cellsPositionsGenerated.filter(pos => !prevCellsPositionGeneratedRef.current.some(prevPos => pos == prevPos)).forEach((position, index) => {
+                const newBox = createBoxCell(stringToVector(position))
+                newBox.userData.id = position
+                newBox.userData.isBox = true
+                scene.add(newBox)
 
-            positionsGenerated.forEach((position, index) => {
-                dummy.position.copy(position);
-                dummy.updateMatrix();
-                instancedMeshCube.setMatrixAt(index, dummy.matrix);
-            });
-            instancedMeshCube.userData.isBox = true
-            instancedMeshCube.userData.isStable = false
-
-            scene.add(instancedMeshCube);
-            return instancedMeshCube;
+            })
+            return scene.children.filter(children => children.type == "Mesh" && children.userData.isBox == true)
         }
         else if (typeOfCell == "Plane") {
-            const geometry = new THREE.PlaneGeometry(cubeSizeParameter, cubeSizeParameter);
-            const material = new THREE.MeshPhysicalMaterial({
-                color: 0xf9fafb,
-                reflectivity: 0.1
-            }); const instancedMeshPlane = new THREE.InstancedMesh(geometry, material, positions.length);
-            const dummy = new THREE.Object3D();
+            cellsPositionsGenerated.filter(pos => !prevCellsPositionGeneratedRef.current.some(prevPos => pos == prevPos)).forEach((position, index) => {
+                const newPlane = createPlaneCell(stringToVector(position))
+                newPlane.userData.id = position
+                newPlane.userData.isPlane = true
+                scene.add(newPlane)
 
-            positionsGenerated.forEach((position, index) => {
-                dummy.position.copy(position);
-                dummy.updateMatrix();
-                instancedMeshPlane.setMatrixAt(index, dummy.matrix);
+            })
+            return scene.children.filter(children => children.type == "Mesh" && children.userData.isPlane == true)
+        }
+        else return null
+    }   // <-- cell management END 
+
+    const removeOldCells = () => {
+        if (typeOfCell !== "Point" && sceneRef.current) {
+            if (particlesGenerated) {
+                sceneRef.current!.remove(particlesGenerated)
+            }
+
+            const objectsToRemove = sceneRef.current!.children.filter(child =>
+                (child.userData.isPlane || child.userData.isBox) &&
+                !cellsPositionsGenerated.includes(vectorToString(child.position))
+            );
+
+            objectsToRemove.forEach(child => {
+                sceneRef.current!.remove(child);
             });
-            instancedMeshPlane.userData.isPlane = true
-            instancedMeshPlane.userData.isStable = false
-            scene.add(instancedMeshPlane);
-            return instancedMeshPlane;
+            setObjectCellGenerated(objectsToRemove);
 
         }
+        else if (sceneRef.current && typeOfCell == "Point") {
+            if (objectCellGenerated) {
+                sceneRef.current.children.forEach(child => {
+                    if (child.userData.isBox == true || child.userData.isPlane == true) {
+                        sceneRef.current!.remove(child)
+                    }
+                })
+            }
+            if (particlesGenerated) {
+                sceneRef.current.remove(particlesGenerated)
+            }
+        }
 
-        else return null;
-    }    // <-- cell management END 
+    }
+
+    const gameOfLifeSystem = () => {
+        let positionsToFilter: string[] = cellsPositionsGenerated
 
 
+        let cellsToDelete: string[] = []
+        let cellsToCreate: string[] = []
+        positionsToFilter.forEach(cellPosition => {
+            let countBoxAround: number = gridIs3DParameter ? verifyCellAround3D(positionsToFilter.map(stringToVector), stringToVector(cellPosition), cubeSizeParameter) : verifyCellAround2D(surpopulationLimit, positionsToFilter.map(stringToVector), stringToVector(cellPosition), cubeSizeParameter)
+            if (countBoxAround > surpopulationLimit || countBoxAround <= lonelinessLimit) {
+                if (!cellsToDelete.includes(cellPosition)) {
+                    cellsToDelete.push(cellPosition)
+                }
+            }
+        })
+        positionsToFilter.forEach(filteredPosition => {
+            const deadCellAround: string[] = returnDeadCellAround(positionsToFilter.map(stringToVector), stringToVector(filteredPosition), cubeSizeParameter, gridIs3DParameter ? true : false).map(vectorToString)
+            deadCellAround.forEach(deadCell => {
+                let liveCellsAroundCounter: number = gridIs3DParameter ? verifyCellAround3D(positionsToFilter.map(stringToVector), stringToVector(deadCell), cubeSizeParameter) : verifyCellAround2D(birthRate, positionsToFilter.map(stringToVector), stringToVector(deadCell), cubeSizeParameter)
+                if (liveCellsAroundCounter == birthRate) {
+                    const existsInBoxToCreate = cellsToCreate.some(cell => (deadCell == cell));
+                    if (!existsInBoxToCreate) {
+                        cellsToCreate.push(deadCell);
+                    }
+                }
+            })
+        })
+        positionsToFilter = positionsToFilter.filter(positionToFilter =>
+            !cellsToDelete.some(positionToDelete => positionToFilter == positionToDelete)
+        );
+        const updatedPositions = [...positionsToFilter, ...cellsToCreate];
+        const uniqueUpdatedPositions = updatedPositions.reduce((acc: string[], current) => {
+            if (!acc.some(item => item == current)) {
+                acc.push(current);
+            }
+            return acc;
+        }, []);
+        dispatch(setCellPositions(uniqueUpdatedPositions))
+    }
 
+    const displayCells = () => {
+        if (hideCellsIsRequested) {
+            hideCells()
+            cellsAreHiden.current = true
+        }
+        else {
+            if (cellsAreHiden.current == true) {
+                if (typeOfCell !== "Point") {
+                    objectCellGenerated?.forEach(child => sceneRef.current?.add(child))
+                }
+                else if (particlesGenerated) {
+                    sceneRef.current?.add(particlesGenerated)
+
+                }
+                cellsAreHiden.current = false
+            }
+            else {
+                removeOldCells()
+                if (typeOfCell !== "Point") {
+                    const newAddedObjectsMesh = generateMeshObjects(sceneRef.current!)
+                    setObjectCellGenerated(newAddedObjectsMesh)
+                }
+                else {
+                    const newAddedObjectsParticle = generateParticle(sceneRef.current!)
+                    setParticlesGenerated(newAddedObjectsParticle)
+                }
+
+            }
+        }
+    }
 
     // <-- event systems  START
     const onGridClick = (event: MouseEvent) => {
@@ -415,21 +436,22 @@ function threeJSSceneComponent() {
                 const intersectsGrid = raycaster.intersectObject(planeInstances);
                 if (intersectsGrid.length > 0) {
                     const instanceId = intersectsGrid[0].instanceId;
-                    const intersectedObject = intersectsGrid[0].object;
-                    if (instanceId !== undefined && intersectedObject.userData.isGrid) {
-                        let bannedPosition = getInstancePosition(planeInstances, instanceId)
-                        console.log(bannedPosition)
-                        const newExcludePlanePosition = addPositionCell(bannedPosition)
-                        console.log(newExcludePlanePosition)
-                      //  addPositionCellByRedux(bannedPosition)
-                        setPositionsGenerated([...newExcludePlanePosition]);
+                    if (instanceId !== undefined) {
+                        const intersectedObject = intersectsGrid[0].object;
+                        const instanceMatrix = new THREE.Matrix4();
+                        planeInstances!.getMatrixAt(instanceId, instanceMatrix);
+                        const bannedPosition = new THREE.Vector3();
+                        bannedPosition.setFromMatrixPosition(instanceMatrix);
+
+                        if (intersectedObject.userData.isGrid) {
+                            addPositionCellByRedux(bannedPosition);
+                        }
                     }
                 }
             }
         }
     };
     const onCellClick = (event: MouseEvent) => {
-        console.log("ON CELL CLICK")
         event.preventDefault();
         if (gameIsRunning == false) {
             if (!cameraRef.current || !rendererRef.current) return;
@@ -439,22 +461,13 @@ function threeJSSceneComponent() {
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
             raycaster.setFromCamera(mouse, cameraRef.current);
-            if (instancesGenerated) {
-                const intersectsGrid = raycaster.intersectObject(instancesGenerated);
+            if (objectCellGenerated) {
+                const intersectsGrid = raycaster.intersectObjects(objectCellGenerated);
                 if (intersectsGrid.length > 0) {
-                    const instanceId = intersectsGrid[0].instanceId;
                     const intersectedObject = intersectsGrid[0].object;
-                    if (instanceId !== undefined && (intersectedObject.userData.isBox || intersectedObject.userData.isPlane)) {
-                        let bannedPosition = getInstancePosition(instancesGenerated, instanceId)
-                        const newExcludePlanePosition = addPositionCell(bannedPosition)
-                        setPositionsGenerated([...newExcludePlanePosition]);
-                        dispatch(setCellPositions(positionsGenerated.map(vectorToString)))
-
-
-
-
-
-
+                    if (intersectedObject !== undefined && (intersectedObject.userData.isBox || intersectedObject.userData.isPlane)) {
+                        let bannedPosition = intersectedObject.position
+                        addPositionCellByRedux(bannedPosition)
                     }
                 }
             }
@@ -468,27 +481,58 @@ function threeJSSceneComponent() {
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
         mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         raycaster.setFromCamera(mouse, cameraRef.current);
-        if (instancesGenerated !== null) {
-            const intersectsGrid = raycaster.intersectObject(instancesGenerated);
+
+
+        if (objectCellGenerated !== null && objectCellGenerated.length > 0) {
+            const intersectsGrid = raycaster.intersectObjects(objectCellGenerated);
             if (intersectsGrid.length > 0) {
-                const instanceId = intersectsGrid[0].instanceId;
                 const intersectedObject = intersectsGrid[0].object;
 
-                if (instanceId !== undefined && (intersectedObject.userData.isBox || intersectedObject.userData.isPlane)) {
-                    let bannedPosition = getInstancePosition(instancesGenerated, instanceId)
+                if (intersectedObject !== undefined && (intersectedObject.userData.isBox || intersectedObject.userData.isPlane)) {
                     const cellPosition = {
-                        x: Number((bannedPosition.x as unknown as number).toFixed(2)),
-                        y: Number((bannedPosition.y as unknown as number).toFixed(2)),
-                        z: Number((bannedPosition.z as unknown as number).toFixed(2))
+                        x: Number(intersectedObject.position.x.toFixed(2)),
+                        y: Number(intersectedObject.position.y.toFixed(2)),
+                        z: Number(intersectedObject.position.z.toFixed(2))
                     };
 
                     if (cellPosition !== positionMouse) {
                         dispatch(setCurrentHoverCell({
-                            cell: `x: ${(bannedPosition.x as unknown as number).toFixed(2)}, y: ${(bannedPosition.y as unknown as number).toFixed(2)}, z: ${bannedPosition.z}`,
+                            cell: `x: ${(cellPosition.x as unknown as number).toFixed(2)}, y: ${(cellPosition.y as unknown as number).toFixed(2)}, z: ${cellPosition.z}`,
                             mouseX: event.clientX,
                             mouseY: event.clientY,
                         }));
-                        setPositionMouse(bannedPosition)
+                        setPositionMouse(cellPosition as THREE.Vector3)
+                    }
+                }
+            } else {
+                dispatch(setCurrentHoverCell(null));
+            }
+        }
+
+
+
+        else if (particlesGenerated !== null) {
+            raycaster.params.Points.threshold = 0.05
+            const intersectsParticles = raycaster.intersectObject(particlesGenerated);
+            if (intersectsParticles.length > 0) {
+                const intersectedObject = intersectsParticles[0].object;
+                const intersectedPoint = intersectsParticles[0].point;
+
+
+                if (intersectedObject !== undefined && intersectedObject.userData.isPoint) {
+                    const cellPosition = {
+                        x: Number(intersectedPoint.x.toFixed(1)),
+                        y: Number(intersectedPoint.y.toFixed(1)),
+                        z: Number(intersectedPoint.z.toFixed(1))
+                    };
+
+                    if (cellPosition !== positionMouse) {
+                        dispatch(setCurrentHoverCell({
+                            cell: `x: ${cellPosition.x}, y: ${cellPosition.y}, z: ${cellPosition.z}`,
+                            mouseX: event.clientX,
+                            mouseY: event.clientY,
+                        }));
+                        setPositionMouse(cellPosition as THREE.Vector3);
                     }
                 }
             } else {
@@ -497,7 +541,7 @@ function threeJSSceneComponent() {
         }
 
     };
-    // <-- event system END
+
 
     useEffect(() => {
         const { scene, camera, renderer, controls, composer } = initScene(workspace3D, positionCamera);
@@ -535,7 +579,7 @@ function threeJSSceneComponent() {
 
 
     useEffect(() => {
-        const initialPositions = calculatePlanePosition().filter(position => !positionsGenerated.some(prevPosition => prevPosition.equals(position)));
+        const initialPositions = calculatePlanePosition().filter(position => !cellsPositionsGenerated.some(prevPosition => prevPosition == vectorToString(position)));
         setPlanePosition(initialPositions);
     }, [gridHeightParameter,
         gridWidthParameter,
@@ -567,262 +611,52 @@ function threeJSSceneComponent() {
         hideGridParameter,
     ]);
 
-
+    // generation des cellule
     useEffect(() => {
-        console.log(hideCells)
-        if (sceneRef.current && typeOfCell !== "Point") {
-            if (hideCells == false) {
-                const newInstancesGenerated = generateAllTypeInstance(sceneRef.current, positionsGenerated);
-                if (instancesGenerated) {
-                    sceneRef.current.remove(instancesGenerated);
-                    if (particlesGenerated) {
-                        sceneRef.current.remove(particlesGenerated)
-                    }
-                }
-                if (newInstancesGenerated !== null && newInstancesGenerated !== undefined) {
-                    sceneRef.current.add(newInstancesGenerated);
-                    setInstancesGenerated(newInstancesGenerated)
-                }
-            }
-            else {
-                if (instancesGenerated) {
-                    sceneRef.current.remove(instancesGenerated);
-                    if (particlesGenerated) {
-                        sceneRef.current.remove(particlesGenerated)
-                    }
-                }
-            }
 
+        if (gameIsRunning == true || stepByStepMode == true) {
+            dispatch(setNumberFrame(currentFrame + 1))
+            dispatch(setStepByStepMode(false))
         }
-        else if (sceneRef.current && typeOfCell == "Point") {
-            if (hideCells == false) {
-                const newGeneratedParticles = generateParticle(sceneRef.current, positionsGenerated);
-                const newInvisiblePlaneGenerated = generateInvisiblePlane(sceneRef.current, positionsGenerated);
-
-                if (particlesGenerated) {
-                    sceneRef.current.remove(particlesGenerated);
-                    if (instancesGenerated) {
-                        sceneRef.current.remove(instancesGenerated)
-                    }
-                }
-                if (particlesPlanesGenerated) {
-                    sceneRef.current.remove(particlesPlanesGenerated);
-
-                }
-
-                if (newGeneratedParticles !== null && newGeneratedParticles !== undefined) {
-                    sceneRef.current.add(newGeneratedParticles);
-                    setParticlesGenerated(newGeneratedParticles);
-                }
-
-                if (newInvisiblePlaneGenerated !== null && newInvisiblePlaneGenerated !== null) {
-                    sceneRef.current.add(newInvisiblePlaneGenerated);
-                    setInstancesGenerated(newInvisiblePlaneGenerated);
-                }
-            } else {
-                if (particlesGenerated) {
-                    sceneRef.current.remove(particlesGenerated);
-                }
-                if (particlesPlanesGenerated) {
-                    sceneRef.current.remove(particlesPlanesGenerated);
-                }
-            }
+        if (resetIsRequired == true) {
+            dispatch(setNumberFrame(0))
+            dispatch(setResetIsRequired(false))
         }
-    }, [positionsGenerated, loadedData, positionCellToLoad, hideCells])
+        displayCells()
+        updateCells()
 
-    // pour le chargement depuis client
-    useEffect(() => {
-        setPositionsGenerated([])
-    }, [positionCellToLoad])
 
+    }, [cellsPositionsGenerated, positionCellToLoad, hideCellsIsRequested])
 
     useEffect(() => {
-        const { unstableCellSet, stableCellSet } = filterByStability();
-    }, [currentFrame])
+
+        changeCellType()
+        displayCells()
 
 
+    }, [typeOfCell])
 
-    // game of life system in STEP BY STEP mode
+
+    // game of life system  STEP BY STEP mode
     useEffect(() => {
+        prevCellsPositionGeneratedRef.current = cellsPositionsGenerated
         if (stepByStepMode) {
-            if (positionsGenerated.length !== 0) {
-                dispatch(setNumberFrame(currentFrame + 1))
-                let positionsToFilter: THREE.Vector3[] = positionsGenerated
-                let cellsToDelete: THREE.Vector3[] = []
-                let cellsToCreate: THREE.Vector3[] = []
-                positionsToFilter.forEach(boxPosition => {
-                    let countBoxAround: number = gridIs3DParameter ? verifyCellAround3D(surpopulationLimit, positionsGenerated, boxPosition, cubeSizeParameter) : verifyCellAround2D(surpopulationLimit, positionsGenerated, boxPosition, cubeSizeParameter)
-                    if (countBoxAround > surpopulationLimit || countBoxAround <= lonelinessLimit) {
-                        if (!cellsToDelete.includes(boxPosition)) {
-                            cellsToDelete.push(boxPosition)
-                        }
-                    }
-                })
-                positionsToFilter = positionsToFilter.filter(positionToFilter =>
-                    !cellsToDelete.some(positionToDelete =>
-                        positionToFilter.x == positionToDelete.x &&
-                        positionToFilter.y == positionToDelete.y &&
-                        positionToFilter.z == positionToDelete.z
-                    )
-                );
-                positionsToFilter.forEach(filteredPosition => {
-                    const deadCellAround: THREE.Vector3[] = returnDeadCellAround(positionsToFilter, filteredPosition, cubeSizeParameter, gridIs3DParameter ? true : false)
-                    deadCellAround.forEach(deadCell => {
-                        let liveCellsAroundCounter: number = gridIs3DParameter ? verifyCellAround3D(birthRate, positionsGenerated, deadCell, cubeSizeParameter) : verifyCellAround2D(birthRate, positionsGenerated, deadCell, cubeSizeParameter)
-                        if (liveCellsAroundCounter == birthRate) {
-                            const existsInBoxToCreate = cellsToCreate.some(cell => vectorsAreEqual(deadCell, cell));
-                            if (!existsInBoxToCreate) {
-                                cellsToCreate.push(deadCell);
-                            }
-                        }
-                    })
-                })
-                const updatedPositions = [...positionsToFilter, ...cellsToCreate];
-                const uniqueUpdatedPositions = updatedPositions.reduce((acc: THREE.Vector3[], current) => {
-                    if (!acc.some(item => vectorsAreEqual(item, current))) {
-                        acc.push(current);
-                    }
-                    return acc;
-                }, []);
-
-
-                dispatch(setCellsNumber(uniqueUpdatedPositions.length))
-                setPositionsGenerated(uniqueUpdatedPositions)
-                dispatch(setCellPositions(uniqueUpdatedPositions.map(vectorToString)))
-            }
+            gameOfLifeSystem()
         }
-        dispatch(setStepByStepMode(false))
-
     }, [stepByStepMode])
 
-    // game of life system 
- /*  useEffect(() => {
+    // game of life system  
+    useEffect(() => {
+        prevCellsPositionGeneratedRef.current = cellsPositionsGenerated
+
         if (stepByStepMode == false) {
-            if (loadedData && importedDataIsLoad === false) {
-               // setPositionsGenerated(loadedData.cellPositions)
-                
-                setImportedDataIsLoad(true)
-            }
             setTimeout(() => {
-                if (gameIsRunning && positionsGenerated.length !== 0) {
-                    dispatch(setNumberFrame(currentFrame + 1))
-
-                    let positionsToFilter: THREE.Vector3[] = positionsGenerated
-                    let cellsToDelete: THREE.Vector3[] = []
-                    let cellsToCreate: THREE.Vector3[] = []
-                    positionsToFilter.forEach(boxPosition => {
-                        let countBoxAround: number = gridIs3DParameter ? verifyCellAround3D(surpopulationLimit, positionsGenerated, boxPosition, cubeSizeParameter) : verifyCellAround2D(surpopulationLimit, positionsGenerated, boxPosition, cubeSizeParameter)
-                        if (countBoxAround > surpopulationLimit || countBoxAround <= lonelinessLimit) {
-                            if (!cellsToDelete.includes(boxPosition)) {
-                                cellsToDelete.push(boxPosition)
-                            }
-                        }
-                    })
-                    positionsToFilter = positionsToFilter.filter(positionToFilter =>
-                        !cellsToDelete.some(positionToDelete =>
-                            positionToFilter.x == positionToDelete.x &&
-                            positionToFilter.y == positionToDelete.y &&
-                            positionToFilter.z == positionToDelete.z
-                        )
-                    );
-                    positionsToFilter.forEach(filteredPosition => {
-                        const deadCellAround: THREE.Vector3[] = returnDeadCellAround(positionsToFilter, filteredPosition, cubeSizeParameter, gridIs3DParameter ? true : false)
-                        deadCellAround.forEach(deadCell => {
-                            let liveCellsAroundCounter: number = gridIs3DParameter ? verifyCellAround3D(birthRate, positionsGenerated, deadCell, cubeSizeParameter) : verifyCellAround2D(birthRate, positionsGenerated, deadCell, cubeSizeParameter)
-                            if (liveCellsAroundCounter == birthRate) {
-                                const existsInBoxToCreate = cellsToCreate.some(cell => vectorsAreEqual(deadCell, cell));
-                                if (!existsInBoxToCreate) {
-                                    cellsToCreate.push(deadCell);
-                                }
-                            }
-                        })
-                    })
-                    const updatedPositions = [...positionsToFilter, ...cellsToCreate];
-                    const uniqueUpdatedPositions = updatedPositions.reduce((acc: THREE.Vector3[], current) => {
-                        if (!acc.some(item => vectorsAreEqual(item, current))) {
-                            acc.push(current);
-                        }
-                        return acc;
-                    }, []);
-                    dispatch(setCellsNumber(uniqueUpdatedPositions.length))
-                    setPositionsGenerated(uniqueUpdatedPositions)
-                    dispatch(setCellPositions(uniqueUpdatedPositions.map(vectorToString)))
-
-
+                if (gameIsRunning && cellsPositionsGenerated.length !== 0) {
+                    gameOfLifeSystem()
                 }
             }, 1000 / speed)
         }
-    }, [positionsGenerated, gameIsRunning, importedDataIsLoad])*/
-
-
-    // game of life system REDUX VERSION 
-    useEffect(() => {
-        if (stepByStepMode == false) {
-            if (loadedData && importedDataIsLoad === false) {
-                setPositionsGenerated(loadedData.cellPositions.map((vectorString: string) => stringToVector(vectorString)));
-
-                setImportedDataIsLoad(true)
-            }
-            setTimeout(() => {
-                if (gameIsRunning && positionsGenerated.length !== 0) {
-                    dispatch(setNumberFrame(currentFrame + 1))
-
-                    let positionsToFilter: THREE.Vector3[] = positionsGenerated
-                    let cellsToDelete: THREE.Vector3[] = []
-                    let cellsToCreate: THREE.Vector3[] = []
-                    positionsToFilter.forEach(boxPosition => {
-                        let countBoxAround: number = gridIs3DParameter ? verifyCellAround3D(surpopulationLimit, positionsGenerated, boxPosition, cubeSizeParameter) : verifyCellAround2D(surpopulationLimit, positionsGenerated, boxPosition, cubeSizeParameter)
-                        if (countBoxAround > surpopulationLimit || countBoxAround <= lonelinessLimit) {
-                            if (!cellsToDelete.includes(boxPosition)) {
-                                cellsToDelete.push(boxPosition)
-                            }
-                        }
-                    })
-                    positionsToFilter = positionsToFilter.filter(positionToFilter =>
-                        !cellsToDelete.some(positionToDelete =>
-                            positionToFilter.x == positionToDelete.x &&
-                            positionToFilter.y == positionToDelete.y &&
-                            positionToFilter.z == positionToDelete.z
-                        )
-                    );
-                    positionsToFilter.forEach(filteredPosition => {
-                        const deadCellAround: THREE.Vector3[] = returnDeadCellAround(positionsToFilter, filteredPosition, cubeSizeParameter, gridIs3DParameter ? true : false)
-                        deadCellAround.forEach(deadCell => {
-                            let liveCellsAroundCounter: number = gridIs3DParameter ? verifyCellAround3D(birthRate, positionsGenerated, deadCell, cubeSizeParameter) : verifyCellAround2D(birthRate, positionsGenerated, deadCell, cubeSizeParameter)
-                            if (liveCellsAroundCounter == birthRate) {
-                                const existsInBoxToCreate = cellsToCreate.some(cell => vectorsAreEqual(deadCell, cell));
-                                if (!existsInBoxToCreate) {
-                                    cellsToCreate.push(deadCell);
-                                }
-                            }
-                        })
-                    })
-                    const updatedPositions = [...positionsToFilter, ...cellsToCreate];
-                    const uniqueUpdatedPositions = updatedPositions.reduce((acc: THREE.Vector3[], current) => {
-                        if (!acc.some(item => vectorsAreEqual(item, current))) {
-                            acc.push(current);
-                        }
-                        return acc;
-                    }, []);
-                    dispatch(setCellsNumber(uniqueUpdatedPositions.length))
-                    setPositionsGenerated(uniqueUpdatedPositions)
-                    dispatch(setCellPositions(uniqueUpdatedPositions.map(vectorToString)))
-
-
-                }
-            }, 1000 / speed)
-        }
-    }, [cellsPositionsGenerated, gameIsRunning, importedDataIsLoad])
-
-
-
-    useEffect(() => {
-        setImportedDataIsLoad(false)
-        if (loadedData)
-            setPositionsGenerated(loadedData.cellPositions.map((vectorString: string) => stringToVector(vectorString)));
-
-    }, [loadedData])
-
+    }, [cellsPositionsGenerated, gameIsRunning, importedDataIsLoad, stepByStepMode])
 
     useEffect(() => {
         if (showPerimeter) {
@@ -830,16 +664,15 @@ function threeJSSceneComponent() {
                 for (const oldPerimeter of perimeterObjects) {
                     sceneRef.current.remove(oldPerimeter);
                 }
-                const cellGroups = defineCellGroup(positionsGenerated, cubeSizeParameter);
+                const cellGroups = defineCellGroup(cellsPositionsGenerated, cubeSizeParameter, gridIs3DParameter);
                 const newPerimeterObjects: THREE.Object3D[] = [];
 
                 for (const group of cellGroups) {
-                    const perimeterToAdd = definePerimeterCellGroup(group, positionsGenerated, cubeSizeParameter, gridIs3DParameter);
+                    const perimeterToAdd = definePerimeterCellGroup(group, cellsPositionsGenerated, cubeSizeParameter, gridIs3DParameter);
                     sceneRef.current.add(perimeterToAdd);
                     newPerimeterObjects.push(perimeterToAdd);
                 }
                 setPerimeterObjects(newPerimeterObjects);
-                setPerimeterList(cellGroups)
             }
         }
 
@@ -850,7 +683,7 @@ function threeJSSceneComponent() {
         }
 
 
-    }, [showPerimeter, positionsGenerated]);
+    }, [showPerimeter, cellsPositionsGenerated]);
 
     useEffect(() => {
         if (linkCells) {
@@ -859,37 +692,29 @@ function threeJSSceneComponent() {
                     sceneRef.current.remove(oldLinks);
                 }
                 const newLinksCells: THREE.Object3D[] = [];
-
-                for (const position of positionsGenerated) {
-                    const neighborToLink = searchNeighborInstancesPositions(positionsGenerated, position, cubeSizeParameter, gridIs3DParameter);
-
-                    const links = createLinkCells(neighborToLink, position)
+                for (const position of cellsPositionsGenerated) {
+                    const neighborToLink = searchNeighborInstancesPositions(cellsPositionsGenerated.map(stringToVector), stringToVector(position), cubeSizeParameter, gridIs3DParameter);
+                    const links = createLinkCells(neighborToLink, stringToVector(position))
                     for (const element of links) {
                         sceneRef.current.add(element);
                         newLinksCells.push(element);
                     }
-
                 }
                 setLinksCells(newLinksCells);
-
             }
         }
-
         else if (sceneRef.current !== null) {
             for (const oldLinks of linksCells) {
                 sceneRef.current.remove(oldLinks);
             }
         }
-
-
-    }, [linkCells, positionsGenerated]);
+    }, [linkCells, cellsPositionsGenerated]);
 
     useEffect(() => {
         if (rendererRef.current) {
             rendererRef.current.domElement.addEventListener('click', onGridClick, false);
             rendererRef.current.domElement.addEventListener('click', onCellClick, false);
             rendererRef.current.domElement.addEventListener('mousemove', onCellHover);
-
         }
 
         return () => {
@@ -897,17 +722,15 @@ function threeJSSceneComponent() {
                 rendererRef.current.domElement.removeEventListener('click', onGridClick, false);
                 rendererRef.current.domElement.removeEventListener('click', onCellClick, false);
                 rendererRef.current.domElement.removeEventListener('mousemove', onCellHover, false);
-
             }
         };
-    }, [planeInstances, positionsGenerated, gameIsRunning, positionMouse]);
+    }, [planeInstances, cellsPositionsGenerated, gameIsRunning, positionMouse]);
 
 
 
 
     return (
         <>
-
             <div className='w-full h-full' ref={workspace3D}></div>
         </>
     )
