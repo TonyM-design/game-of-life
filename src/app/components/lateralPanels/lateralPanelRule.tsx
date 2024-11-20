@@ -1,8 +1,8 @@
 "use client";
 import React, {useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux';
-import { selectCubeSize, selectGridIs3DGrid, setCubeSize, setIs3dGrid, setBirthRate, setLonelinessLimit, setSurpopulationLimit, selectBirthRate, selectSurpopulationLimit, selectLonelinessLimit, setSpeed, selectSpeed, setPerimeter, selectPerimeter, setTypeOfCell, selectTypeOfCell, setLinkCells, selectLinkCells, setStability, selectStability, selectHideCells, setHideCells } from './reducers/gridParametersReducer'
-import { selectGameIsActive } from './reducers/controllerParameterReducer';
+import { selectCubeSize, selectGridIs3DGrid, setCubeSize, setIs3dGrid, setBirthRate, setLonelinessLimit, setSurpopulationLimit, selectBirthRate, selectSurpopulationLimit, selectLonelinessLimit, setSpeed, selectSpeed, setPerimeter, selectPerimeter, setTypeOfCell, selectTypeOfCell, setLinkCells, selectLinkCells, selectHideCells, setHideCells } from '../../reducers/gridParametersReducer'
+import { selectGameIsActive } from '../../reducers/controllerParameterReducer';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleQuestion } from '@fortawesome/free-solid-svg-icons';
 import CellTooltip from './cellTooltip';
@@ -22,7 +22,6 @@ function lateralPanelParameter() {
     const surpopulationLimit = useSelector(selectSurpopulationLimit);
     const lonelinessLimit = useSelector(selectLonelinessLimit);
     const speed = useSelector(selectSpeed);
-    const stability = useSelector(selectStability);
     const gameIsRunning = useSelector(selectGameIsActive)
     const hideCells = useSelector(selectHideCells)
     const dispatch = useDispatch();
@@ -67,14 +66,10 @@ function lateralPanelParameter() {
         dispatch(setSpeed(value))
     }
     const typeOfCellChanges = (type: String) => {
-        console.log(type)
         dispatch(setTypeOfCell(type))
     }
 
-    const stabilityChanges = (valueAsNumber: number) => {
-        const value: number = Number(valueAsNumber)
-        dispatch(setStability(value))
-    }
+
 
     const infoHover = (event: any, info: string) => {
         event.preventDefault();
@@ -83,7 +78,6 @@ function lateralPanelParameter() {
             mouseX: event.clientX,
             mouseY: event.clientY
         }
-        console.log(newPoint)
         setCurrentHoverTooltip(newPoint)
 
     };
@@ -161,14 +155,7 @@ function lateralPanelParameter() {
                         </div>
 
 
-                        <div className='  grid grid-cols-12 mt-2  '>
-                            <label htmlFor="y" className='text-slate-300 capitalize col-span-3 opacity-80'>Stability
-                                <FontAwesomeIcon icon={faCircleQuestion} onMouseEnter={(event) => { infoHover(event, "Number of iterations without adjacent cell change before a cell become stable, set 0 to disable ") }} onMouseLeave={() => { setCurrentHoverTooltip(null) }} className='text-slate-100 opacity-75 ml-1  cursor-pointer ' />
-                            </label>
-
-                            <input type="range" value={stability} min={1} max={26} className='text-slate-300 col-start-5 col-span-5' onChange={event => { stabilityChanges((event.target.valueAsNumber)) }} />
-                            <input type="number" value={stability} min={1} max={26} className='text-slate-300  text-opacity-100  border-2 border-opacity-100 border-slate-600 col-start-11 col-span-2 bg-transparent text-center ' onChange={event => { stabilityChanges((event.target.valueAsNumber)) }} />
-                        </div>
+                      
                         <div className='  grid grid-cols-12 mt-2  '>
                             <label htmlFor="y" className='text-slate-300 capitalize col-span-2 opacity-80'>speed</label>
                             <input type="range" value={speed} min={1} max={5} className='text-slate-300 col-start-5 col-span-5' onChange={event => { speedParameterChanges((event.target.valueAsNumber)) }} />

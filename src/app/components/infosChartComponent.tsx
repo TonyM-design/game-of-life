@@ -1,11 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux';
-import { setStableDataPoints, setUnstableDataPoints, selectStableDataPoints, selectUnstableDataPoints } from './lateralPanels/reducers/controllerParameterReducer';
-import { selectNumberFrame, selectCellsNumber, selectStableCellsNumber, selectUnstableCellsNumber } from './lateralPanels/reducers/infoParametersReducer';
+import React, { useEffect, useState } from 'react'
+import { useSelector } from 'react-redux';
+import { selectNumberFrame, selectCellsNumber, selectShowOldCell, selectShowNewCell, selectOldCellsNumber, selectNewCellsNumber } from '../reducers/infoParametersReducer';
 import * as d3 from "d3";
-import { selectDataPoints, setDataPoints } from './lateralPanels/reducers/controllerParameterReducer';
 import CellTooltip from './lateralPanels/cellTooltip';
-import { selectShowAllCell, selectShowStableCell, selectShowUnstableCell } from './lateralPanels/reducers/infoParametersReducer';
+import { selectShowAllCell } from '../reducers/infoParametersReducer';
+import { selectResetIsRequired } from '../reducers/controllerParameterReducer';
 
 
 interface DataPoint {
@@ -19,30 +18,26 @@ interface ArrayPoint {
 
 interface showParameters {
     showAllCell: boolean;
-    showStableCell: boolean;
-    showUnstableCell: boolean;
+    showOldCell: boolean;
+    showNewCell: boolean;
 }
 
 function infosChartComponent(props: showParameters) {
-    const dispatch = useDispatch();
-
     const currentFrame: number = useSelector(selectNumberFrame)
     const cellsNumber: number = useSelector(selectCellsNumber)
-
-    const normalDataPointsToDisplay: DataPoint[] = useSelector(selectDataPoints)
-    const stableDataPointsToDisplay: DataPoint[] = useSelector(selectStableDataPoints)
-    const unstableDataPointsToDisplay: DataPoint[] = useSelector(selectUnstableDataPoints)
-    const stableCellsNumber: number = useSelector(selectStableCellsNumber)
-    const unstableCellsNumber: number = useSelector(selectUnstableCellsNumber)
+    const oldCellsNumber: number = useSelector(selectOldCellsNumber)
+    const newCellsNumber: number = useSelector(selectNewCellsNumber)
     const showAllCell: boolean = useSelector(selectShowAllCell)
-    const showStableCell: boolean = useSelector(selectShowStableCell)
-    const showUnstableCell: boolean = useSelector(selectShowUnstableCell)
+    const showOldCell: boolean = useSelector(selectShowOldCell)
+    const showNewCell: boolean = useSelector(selectShowNewCell)
+    const resetIsRequired: boolean = useSelector(selectResetIsRequired)
+    const [allCellDataPoint, setAllCellsDataPoint] = useState<DataPoint[]>()
+    const [newCellDataPoint, setNewCellsDataPoint] = useState<DataPoint[]>()
+    const [oldCellDataPoint, setOldCellsDataPoint] = useState<DataPoint[]>()
 
     const data: ArrayPoint[] = []
 
     const [currentHoverPoint, setCurrentHoverPoint] = useState<HoverPointState | null>(null)
-    //const hoverPoint: HoverPointState | null = useSelector(selectUnstableCellsNumber)
-
     interface HoverPointState {
         data: string;
         mouseX: number;
@@ -50,45 +45,61 @@ function infosChartComponent(props: showParameters) {
     }
 
 
-    const onPointHover = (event: MouseEvent, d: DataPoint) => {
+    const onPointHover = (event: MouseEvent, datapoint: DataPoint) => {
         event.preventDefault();
         const newPoint: HoverPointState = {
-            data: (`frame : ${d.frame}, cells : ${d.cellule}`),
+            data: (`frame : ${datapoint.frame}, cells : ${datapoint.cellule}`),
             mouseX: event.clientX,
             mouseY: event.clientY
         }
         setCurrentHoverPoint(newPoint)
     };
+    useEffect(() => {
+        setAllCellsDataPoint([])
+        setOldCellsDataPoint([])
+        setNewCellsDataPoint([])
+
+    }, [resetIsRequired])
+
 
     useEffect(() => {
-        const newData: DataPoint = {
+        const newDataAllCells: DataPoint = {
             frame: currentFrame,
             cellule: cellsNumber,
         };
-        const newDataStable: DataPoint = {
+        const newDataOldCells: DataPoint = {
             frame: currentFrame,
-            cellule: stableCellsNumber,
+            cellule: oldCellsNumber,
         };
-        const newDataUnstable: DataPoint = {
+        const newDataNewCells: DataPoint = {
             frame: currentFrame,
-            cellule: unstableCellsNumber,
+            cellule: newCellsNumber,
         };
+        if (allCellDataPoint === undefined) {
+            setAllCellsDataPoint([newDataAllCells]);
+        }
+        else {
+            setAllCellsDataPoint([...allCellDataPoint, newDataAllCells]);
+        }
+        if (oldCellDataPoint === undefined) {
+            setOldCellsDataPoint([newDataOldCells])
+        }
+        else {
+            setOldCellsDataPoint([...oldCellDataPoint, newDataOldCells])
+        }
+        if (newCellDataPoint === undefined) {
+            setNewCellsDataPoint([newDataNewCells]);
+        }
+        else {
+            setNewCellsDataPoint([...newCellDataPoint, newDataNewCells])
+        }
 
-        const newDatasArray: DataPoint[] = [...normalDataPointsToDisplay];
-        newDatasArray.push(newData);
-        const newDatasStablesArray: DataPoint[] = [...stableDataPointsToDisplay];
-        newDatasStablesArray.push(newDataStable);
-        const newDatasUnstableArray: DataPoint[] = [...unstableDataPointsToDisplay];
-        newDatasUnstableArray.push(newDataUnstable);
-        dispatch(setDataPoints(newDatasArray));
-        dispatch(setStableDataPoints(newDatasStablesArray));
-        dispatch(setUnstableDataPoints(newDatasUnstableArray));
 
-        const newArrayAll: ArrayPoint = { id: 'all', pointList: newDatasArray };
-        const newArrayStable: ArrayPoint = { id: 'stable', pointList: newDatasStablesArray };
-        const newArrayUnstable: ArrayPoint = { id: 'unstable', pointList: newDatasUnstableArray };
-        data.push(newArrayAll, newArrayStable, newArrayUnstable);
-    }, [cellsNumber, currentFrame]);
+        const newArrayAll: ArrayPoint = { id: 'all', pointList: allCellDataPoint || [] };
+        const newArrayOld: ArrayPoint = { id: 'old', pointList: oldCellDataPoint || [] };
+        const newArrayNew: ArrayPoint = { id: 'new', pointList: newCellDataPoint || [] };
+        data.push(newArrayAll, newArrayOld, newArrayNew);
+    }, [currentFrame]);
 
     useEffect(() => {
         const svg = d3.select('#line-chart')
@@ -101,13 +112,11 @@ function infosChartComponent(props: showParameters) {
         const width = 500 - margin.left - margin.right;
         const height = 300 - margin.top - margin.bottom;
 
-
-
         const selectGlobalScale = () => {
             const allDataPoints = [
-                ...normalDataPointsToDisplay,
-                ...stableDataPointsToDisplay,
-                ...unstableDataPointsToDisplay
+                ...allCellDataPoint || [],
+                ...oldCellDataPoint || [],
+                ...newCellDataPoint || []
             ];
 
             const [minX, maxX] = d3.extent(allDataPoints, d => d.frame) as [number, number];
@@ -127,16 +136,12 @@ function infosChartComponent(props: showParameters) {
             .domain([globalScale.minY, globalScale.maxY])
             .range([height, 0]);
 
-        const color = d3.scaleOrdinal(d3.schemeCategory10);
 
-
-        // Définir l'axe X
         chart.append("g")
             .attr("transform", `translate(0,${height})`)
             .attr('class', 'text-sm text-slate-500')
             .call(d3.axisBottom(xScale).ticks(5));
 
-        // Définir l'axe Y
         chart.append("g")
             .attr('class', 'text-sm  text-slate-500')
             .call(d3.axisLeft(yScale).ticks(5));
@@ -148,13 +153,13 @@ function infosChartComponent(props: showParameters) {
 
         const seriesData = [];
         if (showAllCell == true) {
-            seriesData.push({ name: 'Normal', data: normalDataPointsToDisplay, color: '#81d4fa' })
+            seriesData.push({ name: 'Normal', data: allCellDataPoint, color: '#81d4fa' })
         }
-        if (showStableCell == true) {
-            seriesData.push({ name: 'Stable', data: stableDataPointsToDisplay, color: '#4caf50' })
+        if (showOldCell == true) {
+            seriesData.push({ name: 'Old', data: oldCellDataPoint, color: '#4caf50' })
         }
-        if (showUnstableCell == true) {
-            seriesData.push({ name: 'Unstable', data: unstableDataPointsToDisplay, color: '#f44336' })
+        if (showNewCell == true) {
+            seriesData.push({ name: 'New', data: newCellDataPoint, color: '#f44336' })
         }
 
 
@@ -168,21 +173,18 @@ function infosChartComponent(props: showParameters) {
             .attr('class', 'line-group')
             .append('path')
             .attr('class', 'line')
-            .attr('d', d => line(d.data))
+            .attr('d', d => line(d.data || []))
             .style('stroke', d => d.color)
             .style('fill', 'none')
             .style('stroke-width', '1.5px')
 
-
-
-        // Ajoute les cercles pour chaque serie
         lines.selectAll('.circle-group')
             .data(seriesData)
             .enter()
             .append('g')
             .style('fill', d => d.color)
             .selectAll('.circle')
-            .data(d => d.data)
+            .data(d => d.data || [])
             .enter()
             .append('circle')
             .attr('cx', d => xScale(d.frame))
@@ -203,7 +205,7 @@ function infosChartComponent(props: showParameters) {
                     .duration(200)
                     .attr('r', 3);
             });
-    }, [normalDataPointsToDisplay, stableDataPointsToDisplay, unstableDataPointsToDisplay, showAllCell, showStableCell, showUnstableCell]);
+    }, [allCellDataPoint, oldCellDataPoint, newCellDataPoint, showAllCell, showOldCell, showNewCell]);
 
 
 

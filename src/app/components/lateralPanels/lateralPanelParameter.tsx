@@ -1,8 +1,8 @@
 "use client";
 import React from 'react'
 import { useSelector, useDispatch } from 'react-redux';
-import { selectGameIsActive } from './reducers/controllerParameterReducer';
-import { selectGridDepth, selectGridHeight, selectGridWidth, selectHideGrid, setGridDepth, setGridHeight, setGridWidth, setHideGrid } from './reducers/gridParametersReducer';
+import { selectGameIsActive } from '../../reducers/controllerParameterReducer';
+import { selectGridDepth, selectGridHeight, selectGridWidth, selectHideGrid, setGridDepth, setGridHeight, setGridWidth, setHideGrid } from '../../reducers/gridParametersReducer';
 function lateralPanelParameter() {
     const gridHeightParameter = useSelector(selectGridHeight);
     const gridwidthParameter = useSelector(selectGridWidth);
@@ -10,8 +10,6 @@ function lateralPanelParameter() {
 
     const hideGrid = useSelector(selectHideGrid);
     const gameIsRunning = useSelector(selectGameIsActive)
-
-    // ajouter le diabled des dimension si case non cocher
     const dispatch = useDispatch();
 
     const heightParameterChanges = (valueAsNumber: number) => {

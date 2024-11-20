@@ -18,7 +18,6 @@ interface GridParameters {
     cubeSize: number;
     iterationNumber: number;
     currentHoverCell: HoverCellState | null;
-    stability: number;
     hideCells : boolean
 }
 
@@ -40,7 +39,6 @@ const initialState: GridParameters = {
     cubeSize: 0.4,
     iterationNumber: 0,
     currentHoverCell: null,
-    stability: 0,
     hideCells : false
 };
 
@@ -108,9 +106,7 @@ export const gridParametersSlice = createSlice(
             incrementIterationNumber: (state) => {
                 state.iterationNumber + 1;
             },
-            setStability: (state, action: PayloadAction<number>) => {
-                state.stability = action.payload;
-            },
+     
             setHideCells: (state, action: PayloadAction<boolean>) => {
                 state.hideCells = action.payload
             },
@@ -119,7 +115,7 @@ export const gridParametersSlice = createSlice(
     }
 )
 
-export const { setIs3dGrid, setIsPointLines, setGridHeight, setGridWidth, setGridDepth, setCubeSize, incrementIterationNumber, setHideGrid, setIsCustomGrid, setBirthRate, setSurpopulationLimit, setLonelinessLimit, setSpeed, setPerimeter, setTypeOfCell, setLinkCells, setCurrentHoverCell,setStability,setHideCells } = gridParametersSlice.actions;
+export const { setIs3dGrid, setIsPointLines, setGridHeight, setGridWidth, setGridDepth, setCubeSize, incrementIterationNumber, setHideGrid, setIsCustomGrid, setBirthRate, setSurpopulationLimit, setLonelinessLimit, setSpeed, setPerimeter, setTypeOfCell, setLinkCells, setCurrentHoverCell,setHideCells } = gridParametersSlice.actions;
 
 export const selectGridIs3DGrid = (state: { grid: GridParameters }) => state.grid.is3DGrid;
 export const selectGridIsPointLines = (state: { grid: GridParameters }) => state.grid.isPointLines;
@@ -138,7 +134,6 @@ export const selectPerimeter = (state: { grid: GridParameters }) => state.grid.p
 export const selectLinkCells = (state: { grid: GridParameters }) => state.grid.linkCells
 export const selectTypeOfCell = (state: { grid: GridParameters }) => state.grid.typeOfCell
 export const selectCurrentHoverCell = (state: { grid: GridParameters }) => state.grid.currentHoverCell
-export const selectStability = (state: { grid: GridParameters }) => state.grid.stability
 export const selectHideCells = (state: { grid: GridParameters }) => state.grid.hideCells
 
 

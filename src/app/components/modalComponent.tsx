@@ -1,45 +1,40 @@
 import { faCircleXmark, faClose, faForward, faXmark } from "@fortawesome/free-solid-svg-icons"
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome"
 import { useDispatch, useSelector } from "react-redux"
-import { setDownloadModalIsOpen, setUploadModalIsOpen, setLoadedData, selectLoadedData, selectUploadModalIsOpen } from "./lateralPanels/reducers/controllerParameterReducer"
+import { setDownloadModalIsOpen, setUploadModalIsOpen, selectUploadModalIsOpen } from "../reducers/controllerParameterReducer"
 import { useFormik } from "formik";
 import { useState } from "react";
 import * as THREE from 'three';
-import { setBirthRate, setIs3dGrid, setLonelinessLimit, setStability, setSurpopulationLimit } from "./lateralPanels/reducers/gridParametersReducer";
+import { setBirthRate, setIs3dGrid, setLonelinessLimit, setSurpopulationLimit } from "../reducers/gridParametersReducer";
+import { setCellPositions } from "../reducers/globalGameReducer";
 
 
 function modalComponent() {
   const dispatch = useDispatch()
-
-
+  const uploadModalIsOpen = useSelector(selectUploadModalIsOpen)
 
   interface LoadedRules {
     zAxis: boolean,
     birthRate: number,
     surpopulation: number,
     loneliness: number,
-    stability: number
   }
 
   interface LoadedData {
     rule: LoadedRules;
-    cellPositions: THREE.Vector3[];
+    cellPositions: string[];
   }
 
-
-  const uploadModalIsOpen = useSelector(selectUploadModalIsOpen)
-  const updatedRules = useSelector(selectLoadedData); 
 
   const updateLocalRule = (importedData: LoadedData) => {
     dispatch(setIs3dGrid(importedData.rule.zAxis))
     dispatch(setBirthRate(importedData.rule.birthRate))
     dispatch(setSurpopulationLimit(importedData.rule.surpopulation))
     dispatch(setLonelinessLimit(importedData.rule.loneliness))
-    dispatch(setStability(importedData.rule.stability))
   }
 
-  const saveData = () => {
-
+  const updateLocalData = (importedData: LoadedData) => {
+    dispatch(setCellPositions(importedData.cellPositions))
   }
 
 
@@ -49,9 +44,13 @@ function modalComponent() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
+
         const fileContent = e.target?.result as string;
+   
         const jsonData = JSON.parse(fileContent);
-        dispatch(setLoadedData(jsonData))
+        updateLocalRule(jsonData)
+        updateLocalData(jsonData)
+
       };
       reader.readAsText(file);
     }
@@ -63,10 +62,9 @@ function modalComponent() {
 
   const confirmModal = () => {
     dispatch(setUploadModalIsOpen(false));
-    if (updatedRules) {
-      updateLocalRule(updatedRules); 
     }
-  };
+  
+
 
   return (<>
     {uploadModalIsOpen ?
@@ -91,6 +89,6 @@ function modalComponent() {
         </div>
       </div> : null}</>
   )
-}
 
+}
 export default modalComponent

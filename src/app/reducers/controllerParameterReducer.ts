@@ -5,14 +5,15 @@ interface GameController {
     numberFrame: number;
     cellsNumber: number;
     dataPoints: DataPoint[];
-    stableDataPoints: DataPoint[];
-    unstableDataPoints: DataPoint[];
-    stableCellsNumber: number;
-    unstableCellsNumber: number;
+    oldDataPoints: DataPoint[];
+    newDataPoints: DataPoint[];
+    oldCellsNumber: number;
+    newCellsNumber: number;
     hoverPoint: HoverPointState | null;
     uploadModalIsOpen: boolean;
     downloadModalIsOpen: boolean;
     loadedData: LoadedData | null
+    resetIsRequired : boolean;
 }
 
 const initialState: GameController = {
@@ -20,14 +21,15 @@ const initialState: GameController = {
     numberFrame: 0,
     cellsNumber: 0,
     dataPoints: [],
-    stableDataPoints: [],
-    unstableDataPoints: [],
-    stableCellsNumber: 0,
-    unstableCellsNumber: 0,
+    oldDataPoints: [],
+    newDataPoints: [],
+    oldCellsNumber: 0,
+    newCellsNumber: 0,
     hoverPoint: null,
     uploadModalIsOpen: false,
     downloadModalIsOpen: false,
-    loadedData: null
+    loadedData: null,
+    resetIsRequired: false,
 }
 interface DataPoint {
     frame: number;
@@ -45,7 +47,6 @@ interface LoadedRules {
     birthRate: number,
     surpopulation: number,
     loneliness: number,
-    stability: number
 }
 
 interface LoadedData {
@@ -75,24 +76,25 @@ export const gameControllerSlice = createSlice(
             setDataPoints: (state, action: PayloadAction<DataPoint[]>) => {
                 state.dataPoints = action.payload;
             },
-            setStableDataPoints: (state, action: PayloadAction<DataPoint[]>) => {
-                state.stableDataPoints = action.payload;
+            setoldDataPoints: (state, action: PayloadAction<DataPoint[]>) => {
+                state.oldDataPoints = action.payload;
             },
-            setUnstableDataPoints: (state, action: PayloadAction<DataPoint[]>) => {
-                state.unstableDataPoints = action.payload;
+            setnewDataPoints: (state, action: PayloadAction<DataPoint[]>) => {
+                state.newDataPoints = action.payload;
             },
-            setStableCellsNumber: (state, action: PayloadAction<number>) => {
-                state.stableCellsNumber = action.payload;
+            setOldCellsNumber: (state, action: PayloadAction<number>) => {
+                state.oldCellsNumber = action.payload;
             },
-            setUnstableCellsNumber: (state, action: PayloadAction<number>) => {
-                state.unstableCellsNumber = action.payload;
+            setNewCellsNumber: (state, action: PayloadAction<number>) => {
+                state.newCellsNumber = action.payload;
             },
             setHoverPoint: (state, action: PayloadAction<HoverPointState | null>) => {
                 state.hoverPoint = action.payload;
             },
-            setLoadedData: (state, action: PayloadAction<LoadedData | null>) => {
-                state.loadedData = action.payload;
+            setResetIsRequired: (state, action: PayloadAction<boolean>) => {
+                state.resetIsRequired = action.payload
             },
+           
         }
     }
 )
@@ -102,25 +104,27 @@ export const {
     setNumberFrame,
     setCellsNumber,
     setDataPoints,
-    setStableDataPoints,
-    setUnstableDataPoints,
-    setStableCellsNumber,
-    setUnstableCellsNumber,
+    setoldDataPoints,
+    setnewDataPoints,
+    setOldCellsNumber,
+    setNewCellsNumber,
     setHoverPoint,
     setUploadModalIsOpen,
     setDownloadModalIsOpen,
-    setLoadedData } = gameControllerSlice.actions;
+    setResetIsRequired,
+     } = gameControllerSlice.actions;
 
 export const selectGameIsActive = (state: { game: GameController }) => state.game.gameIsActive
 export const selectNumberFrame = (state: { game: GameController }) => state.game.numberFrame
 export const selectCellsNumber = (state: { game: GameController }) => state.game.cellsNumber
 export const selectDataPoints = (state: { game: GameController }) => state.game.dataPoints
-export const selectStableDataPoints = (state: { game: GameController }) => state.game.stableDataPoints
-export const selectUnstableDataPoints = (state: { game: GameController }) => state.game.unstableDataPoints
-export const selectStableCellsNumber = (state: { game: GameController }) => state.game.stableCellsNumber
-export const selectUnstableCellsNumber = (state: { game: GameController }) => state.game.unstableCellsNumber
+export const selectoldDataPoints = (state: { game: GameController }) => state.game.oldDataPoints
+export const selectnewDataPoints = (state: { game: GameController }) => state.game.newDataPoints
+export const selectStableCellsNumber = (state: { game: GameController }) => state.game.oldCellsNumber
+export const selectUnstableCellsNumber = (state: { game: GameController }) => state.game.newCellsNumber
 export const selectHoverPoint = (state: { game: GameController }) => state.game.hoverPoint
 export const selectUploadModalIsOpen = (state: { game: GameController }) => state.game.uploadModalIsOpen
 export const selectDownloadModalIsOpen = (state: { game: GameController }) => state.game.downloadModalIsOpen
-export const selectLoadedData = (state: { game: GameController }) => state.game.loadedData
+export const selectResetIsRequired = (state: { game: GameController }) => state.game.resetIsRequired
+
 export default gameControllerSlice.reducer;
